@@ -127,7 +127,7 @@ def split_tokens(string):
 
 class ParserBase(object):
 
-    def __init__(self):
+    def __init__(self, ignore_whitespace=False):
         """ Set up the parser. Create an empty dictionary to contain
         rules. Function definitions that are prefaced with an underscore
         are intended to be special-case rules (e.g. empty, alpha). These
@@ -141,6 +141,7 @@ class ParserBase(object):
             if hasattr(function, RULE_ATTR):
                 # append any rules that are found
                 self.rules[item] = function
+        self.ignore_ws = ignore_whitespace
         self.main = None
 
     def parse(self, string, main=None):
@@ -184,6 +185,9 @@ class ParserBase(object):
         # get the function name if not supplied
         if not name:
             name = function.__name__
+        # set to main if main is undefined
+        if not self.main:
+            self.main = function
         self.rules[name] = function
 
     def rule_from_string(self, name, rule, main=False):
@@ -208,7 +212,8 @@ class ParserBase(object):
         else:
             # otherwise make the group into a single function
             func = self.make_group(groups[0], name)
-        if main:
+        # set to main if instructed or if main is undefined
+        if main or not self.main:
             self.main = name
         # append to the rule dictionary
         self.rules[name] = func 
@@ -233,6 +238,8 @@ class ParserBase(object):
                 characters that have been consumed.
                 """
                 master = Token(token_type=name)
+                if self.ignore_ws:
+                    string = string.lstrip() 
                 original = str(string)
                 for item in group:
                     if is_literal(item):
@@ -263,6 +270,8 @@ class ParserBase(object):
                 either case, the input string is also returned, less
                 any characters that may have been consumed.
                 """
+                if self.ignore_ws:
+                    string = string.lstrip()
                 if is_literal(item):
                     token, string = self.literal(item[1:-1], string)
                 else:
@@ -303,11 +312,18 @@ class ParserBase(object):
         string. If found, return a token and the remainder of the
         string. Otherwise, return None and the original string.
         """
+        if self.ignore_ws:
+            string = string.lstrip()
         if string.startswith(phrase):
             string = string[len(phrase):]
             return Token('literal', phrase), string
         return None, string
     
+    def force_ignore(self, function):
+        
+        def now_ignores_whitespace(*args):
+            pass
+
     @rule
     def alpha(self, string):
         char, other = head(string)
@@ -329,18 +345,6 @@ class ParserBase(object):
             n = len(nonspace)
             return string[:n], string[n:]
         return None, string
-
-
-class ReParser(ParserBase):
-
-    def __init__(self):
-
-        # initialise class
-        super(ReParser, self).__init__()
-
-        # specification of regular expression
-        self.rule_from_string('char', 'alpha | digit | "_"')
-        self.rule_from_string('word', 'char word | char ', main=True)
 
 if __name__ == '__main__':
     p = ReParser()
