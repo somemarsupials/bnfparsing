@@ -3,23 +3,23 @@
 # compatibility
 from __future__ import print_function
 
+# built-in
+from functools import wraps
+
 # package
 from .token import Token
 from .exceptions import *
 
 
-# The intended usage for this module is that the ParserBase class is
-# subclassed and populated with BNF-style rules.
+# The ParserBase class is intended to be subclassed to create an
+# applicatio-specific parser. The subclass should be populated with
+# rules, which can be created using a BNF-style syntax.
 
-# ParserBase uses a simple BNF-like syntax to build rules that can be
-# used to parse regular expressions (or anything). Rules are supplied
-# as strings and are converted into functions. 
-
-# Rules are given as space-delimited words, including the use of the or 
-# ("|") operator. Double quotes are used to delimit literals. Literals
-# expressions will match the exact phrase contained between the double
-# quotes. Non-literal words are treated as existing rules, which are
-# retrieved from the parser's dictionary of existing rules.
+# Rules are given as space-delimited token names or literals, including 
+# the use of the or ("|") operator. Double quotes are used to delimit 
+# literals. Literals expressions will match the exact phrase contained 
+# between the double quotes. Non-literal words are treated as existing 
+# rules, which are retrieved from the parser's dictionary of rules.
 
 # Example: rule_from_string('greeting', 'hello "world" | hi')
 
@@ -125,6 +125,23 @@ def split_tokens(string):
     return ''.join(reversed(output)).split(NULL)
 
 
+def stripify(function):
+    """ Convert a function designed to parse a token from a string to 
+    one that first removes whitespace from the string and then parses
+    the token.
+    """
+    
+    @wraps(function)
+    def with_strip(string):
+        return function(string.lstrip())
+    
+    # amend and add documentation
+    with_strip.__doc__ = '{}\nRemoves whitespace before parsing'
+        'tokens.'.format(function.__doc__)
+
+    return with_strip
+
+
 class ParserBase(object):
 
     def __init__(self, ignore_whitespace=False):
@@ -140,7 +157,10 @@ class ParserBase(object):
             # check for functions marked as rules
             if hasattr(function, RULE_ATTR):
                 # append any rules that are found
-                self.rules[item] = function
+                if ignore_whitespace:
+                    self.rules[item] = stripify(function)
+                else:
+                    self.rules[item] = function
         self.ignore_ws = ignore_whitespace
         self.main = None
 
@@ -188,7 +208,11 @@ class ParserBase(object):
         # set to main if main is undefined
         if not self.main:
             self.main = function
-        self.rules[name] = function
+        # whitespace handling
+        if self.ignore_ws:
+            self.rules[name] = stripify(function)
+        else:
+            self.rules[name] = function
 
     def rule_from_string(self, name, rule, main=False):
         """ Generate and register a rule function from a string-based 
@@ -237,25 +261,29 @@ class ParserBase(object):
                 returned. The input string is also returned, less any
                 characters that have been consumed.
                 """
+                # create a master token under which new tokens sit
                 master = Token(token_type=name)
-                if self.ignore_ws:
-                    string = string.lstrip() 
+                # copy the string, in case it needs to be returned
                 original = str(string)
                 for item in group:
                     if is_literal(item):
+                        # remove quotation marks before searching
                         token, string = self.literal(item[1:-1], string)
                         if token:
                             master.add(token)
                         else:
                             return None, original
                     else:
+                        # get the appropriate function
                         function = self.rules[item]
+                        # generate a token
                         token, string = function(string)
                         if token:
                             master.add(token)
                         else:
                             return None, original
-
+                
+                # return the master token and what remains of the string
                 return master, string
             
         else:
@@ -270,19 +298,21 @@ class ParserBase(object):
                 either case, the input string is also returned, less
                 any characters that may have been consumed.
                 """
-                if self.ignore_ws:
-                    string = string.lstrip()
+                # remote quotation marks before searching
                 if is_literal(item):
                     token, string = self.literal(item[1:-1], string)
                 else:
+                    # get the appropriate function
                     function = self.rules[item]
+                    # generate a token
                     token, string = function(string)
                 if token:
                     token.name = name
+                    # return the token and remains of the string
                 return token, string
 
         # return the function that was created
-        return group_func
+        return stripify(group_func) if self.ignore_ws else group_func
 
     def make_choice(self, choices):
         """ Create a function that handles a series or 'or' clauses.
@@ -301,10 +331,14 @@ class ParserBase(object):
             for item in choices:
                 token, string = item(string)
                 if token:
+                    # return a token if the function succeeds
                     return token, string
+            # if none succeed, return nothing
             return None, string
 
         # return the function that was created
+        # we don't need to worry about whitespace because each 
+        # sub-function will remove whitespace prior to being called
         return choice_func
 
     def literal(self, phrase, string):
@@ -312,26 +346,27 @@ class ParserBase(object):
         string. If found, return a token and the remainder of the
         string. Otherwise, return None and the original string.
         """
-        if self.ignore_ws:
-            string = string.lstrip()
         if string.startswith(phrase):
+            # if found, remove the phrase from the string
             string = string[len(phrase):]
+            # return a token containing the phrase
             return Token('literal', phrase), string
+        # otherwise return nothing
         return None, string
     
-    def force_ignore(self, function):
-        
-        def now_ignores_whitespace(*args):
-            pass
-
+    
+class CommonFunctionsMixin:
+    
     @rule
     def alpha(self, string):
+        """ Capture any alphabetic character. """
         char, other = head(string)
         if char and char.isalpha():
             return Token(token_type='alpha', text=char), other 
         return None, string
 
     @rule
+    """ Capture any digit. """
     def digit(self, string):
         char, other = head(string)
         if char and char.isdigit():
@@ -339,6 +374,7 @@ class ParserBase(object):
         return None, string
 
     @rule
+    """ Capture runs of whitespace. """
     def whitespace(self, string):
         nonspace = string.lstrip()
         if nonspace != string:
@@ -346,6 +382,3 @@ class ParserBase(object):
             return string[:n], string[n:]
         return None, string
 
-if __name__ == '__main__':
-    p = ReParser()
-    print(p.parse('hello'))
