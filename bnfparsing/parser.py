@@ -8,38 +8,6 @@ from .token import Token
 from .exceptions import *
 
 __all__ = ['ParserBase', 'rule']
-
-# The ParserBase class is intended to be subclassed to create an
-# applicatio-specific parser. The subclass should be populated with
-# rules, which can be created using a BNF-style syntax.
-
-# Rules are given as space-delimited token names or literals, including 
-# the use of the or ("|") operator. Double quotes are used to delimit 
-# literals. Literals expressions will match the exact phrase contained 
-# between the double quotes. Non-literal words are treated as existing 
-# rules, which are retrieved from the parser's dictionary of rules.
-
-# Example: new_rule('greeting', 'hello "world" | hi')
-
-# In this case, the rule will match either the results of the  function 
-# 'hello' and the literal 'world', or the results of the function 'hi'. 
-# Recursion is permitted.
-
-# The general form of rule-functions is that they accept a string and
-# return a token (or None) and what remains of the string (or the whole
-# string). This is used in place of an IO-based system.
-
-# Users can create rules through the use of the 'new_rule' 
-# function or through custom functions, using the function 
-# 'from_function'. Customised functions must follow the pattern 
-# described in the previous paragraph. If customised functions are
-# defined as part of a subclass of ParserBase, use the 'rule' decorator
-# to include these functions in the parser's rule dictionary.
-
-# Custom functions can be used in place of long or complicated rules;
-# for example, the pre-defined 'alpha' function is easier to write and 
-# more efficient than a rule with 52 'or' expressions, for 26 letters
-# and 2 cases.
         
 # attribute name used to indicate parsing rules
 RULE_ATTR = 'is_rule'
@@ -50,6 +18,7 @@ NULL = chr(0)
 # for grammars
 SEP = ':='
 DELIMITER = '\n'
+
 
 def head(string):
     """ Split a string into the first and following characters. If
@@ -63,20 +32,23 @@ def rule(function):
     """ This decorator is used to mark bound methods as 'rules'.
     This approach is used because function definitions within class
     definitions cannot be appended to ParserBase.rules at the time of
-    class definition, as it hasn't been created. This seems like a more
-    elegant solution than using the names of the functions.
+    class definition, as it hasn't been created. This seems better than
+    enforcing a naming convention.
     """
     setattr(function, RULE_ATTR, True)
     return function
 
 
 def is_quote(c):
-    """ Returns true for single or double quotes. """
+    """ Verify a string as a quotation mark. True for single or double 
+    quotes. Designed to work with strings of length 1. """
     return c in "'\""
 
 
 def is_literal(c):
-    """ Returns true for strings surrounded by double quotes. """
+    """ Verify a string as a literal. True for strings surrounded by 
+    double quotes. 
+    """
     return c[0] == '"' and c[-1] == '"' and len(c) > 1
 
 
@@ -146,11 +118,26 @@ def stripify(function):
 class ParserBase(object):
 
     def __init__(self, ignore_whitespace=False):
-        """ Set up the parser. Create an empty dictionary to contain
-        rules. Function definitions that are prefaced with an underscore
-        are intended to be special-case rules (e.g. empty, alpha). These
-        are added to the rule dictionary immediately, with the 
-        underscore removed from the name. 
+        """ This class serves as the basis of a BNF parser. It doesn't
+        come populated with any rules. These can be created in one of
+        three ways: use the 'new_rule' function, add in a custom rule
+        when subclassing this class or adding custom rules to an
+        instance post-creation.
+
+        The intended usage is that this class is sub-classed to create
+        a parser for a specific purpose. If custom rules are defined as
+        part of the subclass, they must be flagged with the 'rule'
+        decorator - see above.
+
+        Use the 'parse' method to have the parser parse a string into
+        a hierarchical series of tokens. The parse method calls
+        whichever function is indicated by self.main, unless otherwise
+        instructed.
+
+        Use the ignore_whitespace argument to instruct the parser to
+        ignore whitespace between tokens. This does not require 
+        whitespace between tokens, only that whitespace is removed
+        between each function call.
         """
         self.rules = {}
         for item in dir(self):
@@ -166,10 +153,11 @@ class ParserBase(object):
         self.main = None
 
     def parse(self, string, main=None, allow_partial=False):
-        """ Create a syntax tree by parsing a string. The input string 
-        is expected to correspond to the function that is marked as the
-        main function. An exception is raised if any characters in the 
-        string are not consumed.
+        """ Create a syntax tree by parsing a string. Parses the input
+        string using the role indicated by main, or otherwise self.main. 
+        An exception is raised if any characters in the string are not 
+        consumed, unless the allow_partial argument is True. 
+        Returns a Token.
         """
         # search for the specified function to start with
         if main and main in self.rules:
@@ -200,11 +188,14 @@ class ParserBase(object):
             main=False, force=False):
         """ Install a rule from an existing function. This should be
         used in cases where customised functionality is required. For
-        example, this is useful for capturing empty tokens. It's also
-        easier to use str.isalpha than write an conditional with 52
-        branches.
-        """
+        example, it's easier to use str.isalpha than write an 
+        conditional with 52 branches.
 
+        This registers the rule in self.rules. Duplicate rules replace
+        the existing rule and can only be installed if 'force' is True.
+        Use the main parameter to indicate that this is the main rule
+        for the parser.
+        """
         # check duplication
         if name in self.rules and not force:
             raise ValueError(
@@ -226,7 +217,12 @@ class ParserBase(object):
         """ Generate and register a rule function from a string-based 
         rule. A rule is a series of space-delineated literals or names 
         of other rules. Rules can use the "or" operator ("|"). Literals
-        should be surrounded by quotation marks (" or '). 
+        must be surrounded by quotation marks (" or '). To parse 'or'
+        operators, use a backslash to escape the "|".
+
+        If the 'main' parameter is true, this will be set as the main 
+        rule for the parser. Use the 'force' parameter to overwrite
+        existing rules.
         """
         # check duplication
         if name in self.rules and not force:
@@ -276,7 +272,8 @@ class ParserBase(object):
                 If any call fails, no token is returned. Otherwise,
                 each token is appended to a new token, which is 
                 returned. The input string is also returned, less any
-                characters that have been consumed.
+                characters that have been consumed. Returns a tuple of
+                a Token, or None, and a string.
                 """
                 # create a master token under which new tokens sit
                 master = Token(token_type=name)
@@ -336,7 +333,7 @@ class ParserBase(object):
         For example, " a | b | c". The function calls each rule or
         literal in turn and returns the first that is successful, or
         None. In any case, the input string is also returned, less any
-        characters that were consumed.
+        characters that were consumed. Returns a Token.
         """
 
         def choice_func(string):
@@ -375,7 +372,17 @@ class ParserBase(object):
         return None, string
 
     def grammar(self, grammar, sep=SEP, delimiter=DELIMITER):
-        """ Generate a series of rules from a grammar. """
+        """ Generate a series of rules from a grammar. Grammars should
+        be given as a series of lines delineated by a newline, or
+        whatever is passed as delimiter. Each line should contain a rule
+        name and a definition separated by the ":=", or whatever
+        is passed as the separator.
+
+        Rules obey the same rules as the new_rule method of the parser.
+        In short, give a space-delimited series of rule names or 
+        literals, which must be surrounded by quote marks. See the
+        new_rule function for more information.
+        """
         for rule in grammar.strip().split(delimiter):
             name, parts = rule.split(SEP)
             self.new_rule(name.strip(), parts.strip())

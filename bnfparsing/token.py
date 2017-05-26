@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ['Token']
+""" Defines a class that represents a token in a syntax tree. Contains
+one class, Token.
+"""
+
 
 class Token:
 
@@ -14,10 +17,17 @@ class Token:
         self.parent = None
 
     def add(self, child):
-        """ Add a child token to this token. Child-parent relations are
-        used to illustrate the recursivity of BNF rules. Non-literal
-        tokens should not have a text parameter but instead rely on the
-        'value' method to assemble a representative string. """
+        """ Add a child token to this token. Child-parent relations
+        indicate the components of a token: e.g. the token 'foo' is made
+        up of 'bar' and 'baz'. This is represented by adding these
+        tokens as children. The 'value' method will add the text in
+        both of these children to represent a 'foo' token.
+        
+        Non-literal tokens should not have a text parameter but instead 
+        rely on the 'value' method to assemble a representative string.
+
+        Returns nothing.
+        """
         # prevent the creation of literals with children
         if self.text:
             raise RuntimeError('adding children to a literal')
@@ -25,8 +35,9 @@ class Token:
         child.parent = self
 
     def value(self, with_whitespace=False):
-        """ For a literal (i.e. a token with self.text) return the text.
-        Else recursively return the text values of child tokens.
+        """ For a literal (i.e. a token with self.text) return the
+        token's text. Otherwise, recursively return the text values of 
+        child tokens. Returns a string.
         """
         if self.children and self.text:
             raise RuntimeError('token with text and children')

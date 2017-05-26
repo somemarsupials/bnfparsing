@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+""" Defines a series of custom exceptions for the parser class. All
+exceptions derive from ParserBaseException.
+"""
+
 class ParserBaseException(Exception):
     pass
 
