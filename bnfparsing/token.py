@@ -24,14 +24,15 @@ class Token:
         self.children.append(child)
         child.parent = self
 
-    def value(self):
+    def value(self, with_whitespace=False):
         """ For a literal (i.e. a token with self.text) return the text.
         Else recursively return the text values of child tokens.
         """
         if self.children and self.text:
             raise RuntimeError('token with text and children')
         elif self.children:
-            return ''.join(c.value() for c in self.children)
+            base = ' ' if with_whitespace else ''
+            return base.join(c.value() for c in self.children)
         return self.text
 
     def iter_under(self):

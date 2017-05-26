@@ -363,6 +363,9 @@ class ParserBase(object):
         string. If found, return a token and the remainder of the
         string. Otherwise, return None and the original string.
         """
+        # handle whitespace if required
+        if self.ignore_ws:
+            string = string.lstrip()
         if string.startswith(phrase):
             # if found, remove the phrase from the string
             string = string[len(phrase):]
@@ -373,7 +376,7 @@ class ParserBase(object):
 
     def grammar(self, grammar, sep=SEP, delimiter=DELIMITER):
         """ Generate a series of rules from a grammar. """
-        for rule in grammar.split(delimiter):
-            for name, parts in rule.split(SEP):
-                self.new_rule(name.strip(), parts.strip())
+        for rule in grammar.strip().split(delimiter):
+            name, parts = rule.split(SEP)
+            self.new_rule(name.strip(), parts.strip())
     
