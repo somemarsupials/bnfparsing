@@ -71,3 +71,6 @@ class Token:
         """ False for empty tokens, i.e. not token_type or text. """
         return bool(self.token_type or self.text)
 
+    def __nonzero__(self):
+        """ False for empty tokens, i.e. not token_type or text. """
+        return bool(self.token_type or self.text)
