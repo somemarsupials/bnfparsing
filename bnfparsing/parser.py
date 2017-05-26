@@ -47,6 +47,9 @@ RULE_ATTR = 'is_rule'
 # a character that never occurs in regular strings
 NULL = chr(0)
 
+# for grammars
+SEP = ':='
+DELIMITER = '\n'
 
 def head(string):
     """ Split a string into the first and following characters. If
@@ -193,7 +196,7 @@ class ParserBase(object):
             raise NotFoundError('%s not valid' % string)
         return token
 
-    def from_function(self, function, name=None):
+    def from_function(self, function, name=None, force=False):
         """ Install a rule from an existing function. This should be
         used in cases where customised functionality is required. For
         example, this is useful for capturing empty tokens. It's also
@@ -206,20 +209,30 @@ class ParserBase(object):
         # set to main if main is undefined
         if not self.main:
             self.main = function
+        # check duplication
+        if name in self.rules and not force:
+            raise ValueError(
+                'cannot redefine rule without forcing; use force=True'
+                )
         # whitespace handling
         if self.ignore_ws:
             self.rules[name] = stripify(function)
         else:
             self.rules[name] = function
 
-    def new_rule(self, name, rule, main=False):
+    def new_rule(self, name, rule, main=False, force=False):
         """ Generate and register a rule function from a string-based 
         rule. A rule is a series of space-delineated literals or names 
         of other rules. Rules can use the "or" operator ("|"). Literals
         should be surrounded by quotation marks (" or '). 
         """
+        # check duplication
+        if name in self.rules and not force:
+            raise ValueError(
+                'cannot redefine rule without forcing; use force=True'
+                )
         # replace escaped 'or' characters with NULL
-        rule = rule.replace("\\|", chr(0))
+        rule = rule.replace("\\|", NULL)
         # split 'or' expressions and then split groups
         groups = [group.split() for group in rule.split('|')]
         options = len(groups) > 1
@@ -228,12 +241,16 @@ class ParserBase(object):
             group_funcs = []
             # make each group
             for g in groups:
+                # put pipes back into place
+                g = g.replace(NULL, "|")
                 group_funcs.append(self.make_group(g, name))
             # and then set up an 'or' function
             func = self.make_choice(group_funcs)
         else:
+            # put pipes back into places
+            g = groups[0].replace(NULL, "|")
             # otherwise make the group into a single function
-            func = self.make_group(groups[0], name)
+            func = self.make_group(g, name)
         # set to main if instructed or if main is undefined
         if main or not self.main:
             self.main = name
@@ -351,4 +368,10 @@ class ParserBase(object):
             return Token('literal', phrase), string
         # otherwise return nothing
         return None, string
+
+    def grammar(self, grammar, sep=SEP, delimiter=DELIMITER):
+        """ Generate a series of rules from a grammar. """
+        for rule in grammar.split(delimiter):
+            for name, parts in rule.split(SEP):
+                self.new_rule(name.strip(), parts.strip())
     
