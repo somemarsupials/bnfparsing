@@ -19,9 +19,10 @@ name		:= alpha name | alpha
 
 class IfStmtParser(bnfparsing.ParserBase):
 
-	def __init__(self):
-		super().__init__(ignore_whitespace=True)
-		self.grammar(IF_STMT)
+    def __init__(self):
+    
+        super().__init__(ignore_whitespace=True)
+        self.grammar(IF_STMT)
 		
 p = IfStmtParser()
 p.parse('if x == y')   
