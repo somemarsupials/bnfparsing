@@ -1,9 +1,11 @@
 # bnfparsing
 A simple BNF parser generator for Python.
 
+
 ## Creating parsers
 
 It's recommended that you subclass the `bnfparsing.ParserBase` class whenever you create a new parser. This makes clear the purpose of the parser.
+
 
 ### Using a grammar
 
@@ -27,6 +29,7 @@ class IfStmtParser(bnfparsing.ParserBase):
 p = IfStmtParser()
 p.parse('if x == y')   
 ```
+
 
 ### Using string-based rule creation
 
@@ -56,6 +59,7 @@ Customised rules must accept an input string as an argument. If successful, the
 custom rule must return a tuple containing the token it's created and any unconsumed 
 characters from the input string. If it fails, it must return `None` and the original 
 input string.
+
 
 ### Using functions as rules
 
@@ -103,6 +107,7 @@ Also see `bnfparsing.common`. This module contains some useful functions that ca
 + `digit`
 + `whitespace`
 
+
 ## Outputs
 
 As seen, you can run the parser on an input string using the `parse` method. This raises an error if the given string does not fit the rule set or if there are any tokens remaining - unless you call `parse` with the optional `allow_partial` argument.
@@ -126,6 +131,7 @@ Leading to...
 >>> 'literal : if'
 >>> 'test: x == y'
 ```
+
 
 ## Further work
 
