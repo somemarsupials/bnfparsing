@@ -28,7 +28,9 @@ class Token:
         """ For a literal (i.e. a token with self.text) return the text.
         Else recursively return the text values of child tokens.
         """
-        if self.children:
+        if self.children and self.text:
+            raise RuntimeError('token with text and children')
+        elif self.children:
             return ''.join(c.value() for c in self.children)
         return self.text
 
@@ -36,9 +38,11 @@ class Token:
         """ Iterate over the children beneath the token. """
         return iter(self.children)
 
-    def jump(self):
-        """ Go to the parent token. """
-        return self.parent
+    def __eq__(self, other):
+        """ Compare the value of the token to a string or token. """
+        if isinstance(other, Token):
+            return self.value() == other.value()
+        return self.value() == other
 
     def __len__(self):
         """ Return the length of the token value. """

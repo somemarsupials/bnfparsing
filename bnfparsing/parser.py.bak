@@ -189,7 +189,7 @@ class ParserBase(object):
         # consumed entirely
         if token and unconsumed and not allow_partial:
             raise IncompleteParseError(
-                'characters "%s" remaining' % unconsumed
+                'characters "%s" remaining' % unconsumer
             )
         # if the string does not match
         elif token is None:
@@ -214,8 +214,8 @@ class ParserBase(object):
         if not name:
             name = function.__name__
         # set to main if main is undefined
-        if main or not self.main:
-            self.main = name
+        if not self.main or main:
+            self.main = function
         # whitespace handling
         if self.ignore_ws:
             self.rules[name] = stripify(function)

@@ -84,4 +84,16 @@ class TokenTestSuite(TestCase):
         self.assertTrue(token, msg='__bool__ failed for token with type')
         token = Token(text=MASTER)
         self.assertTrue(token, msg='__bool__ failed for token with text')
-
+    
+    def test_equal(self):
+        """ Test __eq__ method. """
+        token = Token(text=MASTER)
+        child = Token(text=CHILD)
+        self.assertTrue(token == token, msg='__eq__ failed for token')
+        self.assertTrue(token == MASTER, msg='__eq__ failed for string')
+        self.assertFalse(token == child, 
+            msg='__eq__ gave false positive for token'
+            )
+        self.assertFalse(token == CHILD, 
+            msg='__eq__ gave false postive for string'
+            )
