@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from .bnfparser import ParserBase
-from .bnftoken import Token
+from .parser import ParserBase
+from .token import Token
 

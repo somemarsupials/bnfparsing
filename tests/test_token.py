@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from unittest import TestCase
-from bnfparsing.bnftoken import Token
+from bnfparsing.token import Token
 
 class TokenTestSuite(TestCase):
 

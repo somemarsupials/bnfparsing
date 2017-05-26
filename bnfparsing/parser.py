@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# compatibility
-from __future__ import print_function
-
 # built-in
 from functools import wraps
 
 # package
-from .bnftoken import Token
+from .token import Token
 from .exceptions import *
 
+__all__ = ['ParserBase', 'rule']
 
 # The ParserBase class is intended to be subclassed to create an
 # applicatio-specific parser. The subclass should be populated with
@@ -21,7 +19,7 @@ from .exceptions import *
 # between the double quotes. Non-literal words are treated as existing 
 # rules, which are retrieved from the parser's dictionary of rules.
 
-# Example: rule_from_string('greeting', 'hello "world" | hi')
+# Example: new_rule('greeting', 'hello "world" | hi')
 
 # In this case, the rule will match either the results of the  function 
 # 'hello' and the literal 'world', or the results of the function 'hi'. 
@@ -31,9 +29,9 @@ from .exceptions import *
 # return a token (or None) and what remains of the string (or the whole
 # string). This is used in place of an IO-based system.
 
-# Users can create rules through the use of the 'rule_from_string' 
+# Users can create rules through the use of the 'new_rule' 
 # function or through custom functions, using the function 
-# 'rule_from_function'. Customised functions must follow the pattern 
+# 'from_function'. Customised functions must follow the pattern 
 # described in the previous paragraph. If customised functions are
 # defined as part of a subclass of ParserBase, use the 'rule' decorator
 # to include these functions in the parser's rule dictionary.
@@ -195,7 +193,7 @@ class ParserBase(object):
             raise NotFoundError('%s not valid' % string)
         return token
 
-    def rule_from_function(self, function, name=None):
+    def from_function(self, function, name=None):
         """ Install a rule from an existing function. This should be
         used in cases where customised functionality is required. For
         example, this is useful for capturing empty tokens. It's also
@@ -214,7 +212,7 @@ class ParserBase(object):
         else:
             self.rules[name] = function
 
-    def rule_from_string(self, name, rule, main=False):
+    def new_rule(self, name, rule, main=False):
         """ Generate and register a rule function from a string-based 
         rule. A rule is a series of space-delineated literals or names 
         of other rules. Rules can use the "or" operator ("|"). Literals
@@ -354,31 +352,3 @@ class ParserBase(object):
         # otherwise return nothing
         return None, string
     
-
-# the following rules can be used as rules
-# they are included because they are so common
-
-def alpha(self, string):
-    """ Capture any alphabetic character. """
-    char, other = head(string)
-    if char and char.isalpha():
-        return Token(token_type='alpha', text=char), other 
-    return None, string
-
-
-def digit(self, string):
-    """ Capture any digit. """
-    char, other = head(string)
-    if char and char.isdigit():
-        return Token(token_type='digit', text=char), other
-    return None, string
-
-
-def whitespace(self, string):
-    """ Capture runs of whitespace. """
-    nonspace = string.lstrip()
-    if nonspace != string:
-        n = len(nonspace)
-        return string[:n], string[n:]
-    return None, string
-
