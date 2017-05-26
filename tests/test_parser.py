@@ -171,8 +171,14 @@ class TestParser(unittest.TestCase):
     def test_pipe_escaping(self):
         """ Try using an escaped pipe in a rule. """
         p = ParserBase()
-        p.new_rule('escaped', '"pipe: " "\|"')
+        p.new_rule(r'escaped', '"pipe: " "\|"')
         p.parse('pipe: |')
+
+    def test_quote_escaping(self):
+        """ Try using an escaped double-quote in a rule. """
+        p = ParserBase()
+        p.new_rule('quote', r'"\""')
+        p.parse('"')
 
     def test_rule_from_function(self):
         """ Check the operation of custom rules. """
