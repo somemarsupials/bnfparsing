@@ -20,10 +20,9 @@ name		:= alpha name | alpha
 class IfStmtParser(bnfparsing.ParserBase):
 
 	def __init__(self):
-	
-        super().__init__(ignore_whitespace=True)
-        self.grammar(IF_STMT)
-
+		super().__init__(ignore_whitespace=True)
+		self.grammar(IF_STMT)
+		
 p = IfStmtParser()
 p.parse('if x == y')   
 ```
@@ -130,7 +129,5 @@ Leading to...
 ## Further work
 
 + Expanded set of common functions?
-+ Improved whitespace handling; for example, an option that forces the parser to find* whitespace between each token? 
++ Improved whitespace handling; for example, an option that forces the parser to find whitespace between each token, rather than ignore it? 
 + Improved tools for parsing token trees?
-
-\*At the moment, the parser merely has the option to *ignore* whitespace.
