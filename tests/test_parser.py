@@ -168,6 +168,12 @@ class TestParser(unittest.TestCase):
         with self.assertRaises(NotFoundError):
             p.parse('hello planet hi')
 
+    def test_pipe_escaping(self):
+        """ Try using an escaped pipe in a rule. """
+        p = ParserBase()
+        p.new_rule('escaped', '"pipe: " "\|"')
+        p.parse('pipe: |')
+
     def test_rule_from_function(self):
         """ Check the operation of custom rules. """
 

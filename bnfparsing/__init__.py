@@ -20,6 +20,6 @@ The parser breaks an input string into a series of nested Tokens. These
 each represent strings or collect strings.
 """
 
-from .parser import ParserBase
+from .parser import ParserBase, rule
 from .token import Token
 

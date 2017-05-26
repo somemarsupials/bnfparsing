@@ -61,29 +61,43 @@ def split_tokens(string):
     finalised in the output list, in reverse. This is then split on the 
     NULL character to get separated token names.
     """
-    # replace escaped double quotes
-    replaced = string.replace('\\"', NULL)
-    groups = replaced.split('"')
-    tokens = []
-    # if the number of groups is even then there is an issue
-    if len(groups) % 2 == 0:
-        raise ValueError('unfinished literal %s' % string)
-    # keep track of whether in a literal
-    # this alternates between items in the groups list
-    in_literal = False
-    for g in groups:
-        # restore quotes
-        g = g.replace(NULL, '"')
-        # split groups outside of literals
-        if not in_literal and g and not g.isspace():
-            tokens.extend(g.strip().split())
-        # preserve groups in literals
-        elif in_literal:
-            tokens.append('"{}"'.format(g))
-        # alternate
-        in_literal = not(in_literal)
+    # list to contain finalised characters, in reverse
+    output = []
+    # convert input string to list
+    stream = list(string)
+    # used to track literals
+    quote_type = None
+    while stream:
+        c = stream.pop()
+        # for quotes...
+        if is_quote(c):
+            # if an ending quote matches the starting quote...
+            if c == quote_type:
+                # mark the literal as closed
+                quote_type = None
+                # add a separator
+                # note that characters must be combined in reverse
+                c = NULL + c
+            elif not quote_type:
+                # else mark literal as open
+                quote_type = c
+                # and add a preceding separator
+                c += NULL
+        # only double quotes can be escaped
+        elif c == '\\':
+            # get the next character
+            c = stream.pop()
+            # if it's not a matching quote, append the escape 
+            # and the character
+            if not c == quote_type and is_quote(c):
+                c += '\\'
+        output.append(c)
+    # if quote_type is not null, there is an unmatched quotation mark
+    if quote_type:
+        raise SyntaxError('unfinished literal')
+    tokens = ''.join(reversed(output)).split(NULL)
+    tokens = [t for t in tokens if not t.isspace() and t]
     return tokens
-
 
 def stripify(function):
     """ Convert a function designed to parse a token from a string to 
@@ -217,12 +231,10 @@ class ParserBase(object):
                 'cannot redefine rule without forcing; use force=True'
                 )
         # replace escaped 'or' characters with NULL
-        rule = rule.replace('\|', NULL)
+        rule = rule.replace(r'\|', NULL)
         # split 'or' expressions and then split groups
-        groups = []
-        for group in rule.split('|'):
-            groups.append(split_tokens(group.replace(NULL, '|')))
-        # get number of groups
+        groups = [split_tokens(group) for group in rule.split('|')]
+        print('\n', rule, groups)
         options = len(groups) > 1
         # if there is an 'or'...
         if options:
