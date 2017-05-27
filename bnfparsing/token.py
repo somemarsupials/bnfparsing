@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """ Defines a class that represents a token in a syntax tree. Contains
-one class, Token.
+one class, Token. In many ways, tokens behave like strings.
 """
 
 
@@ -9,7 +9,12 @@ class Token:
 
     def __init__(self, token_type=None, text=''):
         """ Create a new token. Tokens can be initialised with any of a
-        type and a text value.
+        type and a text value. Tokens can have child tokens beneath
+        them; the "value" of a token is either the text in the token or
+        aggregated text of the tokens below it.
+
+        The token behaves like a string in most respects, for example 
+        with regards to length, iteration and comparison.
         """
         self.token_type = token_type
         self.text = text
@@ -34,6 +39,16 @@ class Token:
         self.children.append(child)
         child.parent = self
 
+    def remove(self, token):
+        """ Remove a child from the token. The token's id is used as the
+        basis of comparison instead of the __eq__ method - this avoids
+        removing the wrong token in a case where two tokens represent
+        the same string. Returns nothing. """
+        match = id(token)
+        for child in self.children:
+            if id(child) == match:
+                self.children.remove(child)
+
     def value(self, with_whitespace=False):
         """ For a literal (i.e. a token with self.text) return the
         token's text. Otherwise, recursively return the text values of 
@@ -45,10 +60,6 @@ class Token:
             base = ' ' if with_whitespace else ''
             return base.join(c.value() for c in self.children)
         return self.text
-
-    def iter_under(self):
-        """ Iterate over the children beneath the token. """
-        return iter(self.children)
 
     def __eq__(self, other):
         """ Compare the value of the token to a string or token. """
