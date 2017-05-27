@@ -96,8 +96,9 @@ def stripify(function):
         return function(string.lstrip())
     
     # amend and add documentation
-    with_strip.__doc__ = '{}\nRemoves whitespace before parsing' \
+    with_strip.__doc__ = ('{}\nRemoves whitespace before parsing '
         'tokens.'.format(function.__doc__)
+        )
 
     return with_strip
 
