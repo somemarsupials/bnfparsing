@@ -14,7 +14,18 @@ def lower(string):
     """ Capture any lower-case character. """
     char, other = head(string)
     if char and char.islower():
-        return Token(token_type='lower', text=char), other 
+        return Token('lower', char), other 
+    return None, string
+
+
+def lower_run(string):
+    """ Capture a run of lower-case characters. """
+    for n, char in enumerate(string):
+        if not char.islower():
+            break
+        n += 1
+    if n > 0:
+        return Token('lower_run', string[:n]), string[n:] 
     return None, string
 
 
@@ -22,7 +33,18 @@ def upper(string):
     """ Capture any upper-case character. """
     char, other = head(string)
     if char and char.isupper():
-        return Token(token_type='alpha', text=char), other 
+        return Token('upper', char), other 
+    return None, string
+
+
+def upper_run(string):
+    """ Capture a run of upper-case characters. """
+    for n, char in enumerate(string):
+        if not char.isupper():
+            break
+        n += 1
+    if n > 0:
+        return Token('upper_run', string[:n]), string[n:] 
     return None, string
 
 
@@ -30,7 +52,18 @@ def alpha(string):
     """ Capture any alphabetic character. """
     char, other = head(string)
     if char and char.isalpha():
-        return Token(token_type='alpha', text=char), other 
+        return Token('alpha', char), other 
+    return None, string
+
+
+def alpha_run(string):
+    """ Capture a run of alpha-case characters. """
+    for n, char in enumerate(string):
+        if not char.isalpha():
+            break
+        n += 1
+    if n > 0:
+        return Token('alpha_run', string[:n]), string[n:] 
     return None, string
 
 
@@ -38,7 +71,18 @@ def digit(string):
     """ Capture any digit. """
     char, other = head(string)
     if char and char.isdigit():
-        return Token(token_type='digit', text=char), other
+        return Token('digit', char), other
+    return None, string
+
+
+def digit_run(string):
+    """ Capture a run of digit-case characters. """
+    for n, char in enumerate(string):
+        if not char.isdigit():
+            break
+        n += 1
+    if n > 0:
+        return Token('digit_run', string[:n]), string[n:] 
     return None, string
 
 
