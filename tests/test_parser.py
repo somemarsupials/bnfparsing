@@ -49,27 +49,27 @@ class TestParser(unittest.TestCase):
 
     def test_rule_addition(self):
         """ Check that rules can be added to the rule dictionary. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('hello', '"hello"')
         # check that the p has the new rule
         self.assertEqual(list(p.rules.keys()), ['hello'])
 
     def test_literal(self):
         """ Test a custom rule that involves a literal. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('hello', '"hello"', main=True)
         self.check(p, *STANDARD)
 
     def test_rule_reference(self):
         """ Test a custom rule that references another rule. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('literal', '"hello"')
         p.new_rule('reference', 'literal')
         self.check(p, *STANDARD)
 
     def test_bad_rule_reference(self):
         """ Refer to a rule that doesn't exist. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('bad', 'notarule')
         with self.assertRaises(KeyError, 
                 msg='non-existent rule did not raise error'):
@@ -77,33 +77,33 @@ class TestParser(unittest.TestCase):
 
     def test_rule_sequence(self):
         """ Test a rule that contains a sequence of tokens. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('hello', '"hel" "lo"')
         self.check(p, *STANDARD)
 
     def test_long_sequence(self):
         """ Test a longer sequence, using literals and rules. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('ls', '"l"')
         p.new_rule('long', '"h" "e" ls ls "o"', main=True)
         self.check(p, *STANDARD)
 
     def test_branching(self):
         """ Test a simple 'or' example. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('branch', '"null" | "hello"')
         self.check(p, *STANDARD)
 
     def test_branching_complex(self):
         """ A more complicated branching example. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('end', '"llo"')
         p.new_rule('branch', '"hellp" | "he" end', main=True)
         self.check(p, *STANDARD)
 
     def test_recursion(self):
         """ Test the use of recursion to achieve repetition. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('repeat', '"hello" repeat | "hello"')
         # standard check on a single 'hello'
         self.check(p, *STANDARD)
@@ -113,7 +113,7 @@ class TestParser(unittest.TestCase):
 
     def test_empty_string(self):
         """ Check that the parser understands empty strings. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('empty', '""')
         p.new_rule('hello', '"hello"')
         p.new_rule('combined', 'hello empty', main=True)
@@ -125,7 +125,7 @@ class TestParser(unittest.TestCase):
 
     def test_whitespace(self):
         phrase = 'hello world'
-        p = ParserBase(ignore_whitespace=True)
+        p = ParserBase(treeview=False, ignore_whitespace=True)
         p.new_rule('test', '"hello" "world"')
         token = p.parse(phrase)
         self.assertEqual(token.value(with_whitespace=True),
@@ -136,7 +136,7 @@ class TestParser(unittest.TestCase):
         """ Use the grammar method, also providing an opportunity to
         check a more complex multi-rule example.
         """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.grammar(GRAMMAR)
         # these should all succeed
         p.parse('https://www.abcabc.com')
@@ -158,7 +158,7 @@ class TestParser(unittest.TestCase):
         """ Check a different grammar, this time using whitespace-
         ignorant parsing.
         """
-        p = ParserBase(ignore_whitespace=True)
+        p = ParserBase(treeview=False, ignore_whitespace=True)
         p.grammar(GRAMMAR_WS)
         # these should succeed
         p.parse('hello Earth hi?')
@@ -170,13 +170,13 @@ class TestParser(unittest.TestCase):
 
     def test_pipe_escaping(self):
         """ Try using an escaped pipe in a rule. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule(r'escaped', '"pipe: " "\|"')
         p.parse('pipe: |')
 
     def test_quote_escaping(self):
         """ Try using an escaped double-quote in a rule. """
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.new_rule('quote', r'"\""')
         p.parse('"')
 
@@ -190,6 +190,6 @@ class TestParser(unittest.TestCase):
                 return w, string[len(w):]
             return None, string
 
-        p = ParserBase()
+        p = ParserBase(treeview=False)
         p.from_function(parse_hello, main=True)
         self.check(p, *STANDARD)

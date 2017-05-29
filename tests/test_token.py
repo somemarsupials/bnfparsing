@@ -56,21 +56,13 @@ class TokenTestSuite(TestCase):
             msg='__len__ method failed'
             )
 
-    def test_iteration_value(self):
-        """ Test the __iter__ method, iterating over value. """
-        master = Token(text=MASTER)
-        string = ''.join(c for c in master)
-        self.assertEqual(string, master.value(),
-            msg='iteration did not produce the correct result'
-            )
-
     def test_iteration_children(self):
         """ Test the iter_under method, iterating over children. """
         master = Token()
         for index in range(NUM):
             master.add(Token(index, str(index)))
         index = 0
-        for child in master.iter_under():
+        for child in master.children:
             self.assertEqual(child.text, str(index),
                 msg='iteration over children failed'
                 )

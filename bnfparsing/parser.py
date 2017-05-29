@@ -5,6 +5,8 @@ from functools import wraps
 
 # package
 from .token import Token
+from .whitespace import make_handler
+from .treeview import TreeView
 from .exceptions import *
 
 __all__ = ['ParserBase', 'rule']
@@ -18,6 +20,10 @@ NULL = chr(0)
 # for grammars
 SEP = ':='
 DELIMITER = '\n'
+
+# for debug
+SUCCESS = 'success: %s'
+FAILED = 'failed: %s'
 
 
 def head(string):
@@ -85,27 +91,9 @@ def split_tokens(string):
     return tokens
 
 
-def stripify(function):
-    """ Convert a function designed to parse a token from a string to 
-    one that first removes whitespace from the string and then parses
-    the token.
-    """
-    
-    @wraps(function)
-    def with_strip(string):
-        return function(string.lstrip())
-    
-    # amend and add documentation
-    with_strip.__doc__ = ('{}\nRemoves whitespace before parsing '
-        'tokens.'.format(function.__doc__)
-        )
-
-    return with_strip
-
-
 class ParserBase(object):
 
-    def __init__(self, ignore_whitespace=False):
+    def __init__(self, ws_handler=None, treeview=True):
         """ This class serves as the basis of a BNF parser. It doesn't
         come populated with any rules. These can be created in one of
         three ways: use the 'new_rule' function, add in a custom rule
@@ -122,25 +110,38 @@ class ParserBase(object):
         whichever function is indicated by self.main, unless otherwise
         instructed.
 
-        Use the ignore_whitespace argument to instruct the parser to
-        ignore whitespace between tokens. This does not require 
-        whitespace between tokens, only that whitespace is removed
-        between each function call.
+        Supply a decorator to the whitespace handler parameter in order
+        to properly handle whitespace between tokens. See the whitespace
+        module for more information on this. If no handler is passed,
+        whitespace characters are treated as normal characters.
+
+        Use the treeview argument to determine whether the parser 
+        returns Tokens or TreeViews by default.
         """
         self.rules = {}
+
+        # store whitespace handling method
+        self.ws_handler = ws_handler
+        # if given, turn the handling method into a decorator
+        if ws_handler:
+            self.ws_decorator = make_handler(ws_handler)
+        else:
+            self.ws_decorator = None
         for item in dir(self):
             function = getattr(self, item)
             # check for functions marked as rules
             if hasattr(function, RULE_ATTR):
                 # append any rules that are found
-                if ignore_whitespace:
-                    self.rules[item] = stripify(function)
+                if self.ws_decorator:
+                    self.rules[item] = self.ws_decorator(function)
                 else:
                     self.rules[item] = function
-        self.ignore_ws = ignore_whitespace
+        # allocate remaining attributes
         self.main = None
+        self.treeview = treeview
 
-    def parse(self, string, main=None, allow_partial=False):
+    def parse(self, string, main=None, debug=False, 
+            allow_partial=False, treeview=None):
         """ Create a syntax tree by parsing a string. Parses the input
         string using the role indicated by main, or otherwise self.main. 
         An exception is raised if any characters in the string are not 
@@ -160,7 +161,7 @@ class ParserBase(object):
             # if main has not been specified
             raise BadEntryError('no entry point specified')
         # call the main function
-        token, unconsumed = main_function(string)
+        token, unconsumed = main_function(string, debug)
         # if tokens are found but the string has not been 
         # consumed entirely
         if token and unconsumed and not allow_partial:
@@ -170,7 +171,29 @@ class ParserBase(object):
         # if the string does not match
         elif token is None:
             raise NotFoundError('%s not valid' % string)
-        return token
+        # if the treeview argument is passed, use that to determine
+        # whether to return a TreeView or a token, else use 
+        # self.treeview to decide
+        if treeview is None:
+            treeview = self.treeview
+        return TreeView(token) if treeview else token
+
+    def enable_debug(self, function, debug=False):
+        """ A decorator-like function that accepts a user-defined 
+        function and converts it into a function that accepts and uses
+        a debug parameter.
+        """
+        
+        @wraps(function)
+        def new_function(string, debug=False):
+            token, string = function(string)
+            if token and debug:
+                print(SUCCESS % function.__name__)
+            elif debug:
+                print(FAILED % function.__name__)
+            return token, string
+
+        return new_function
 
     def from_function(self, function, name=None, 
             main=False, force=False):
@@ -195,9 +218,11 @@ class ParserBase(object):
         # set to main if main is undefined
         if main or not self.main:
             self.main = name
+        # debug handling
+        function = self.enable_debug(function)
         # whitespace handling
-        if self.ignore_ws:
-            self.rules[name] = stripify(function)
+        if self.ws_decorator:
+            self.rules[name] = self.ws_decorator(function)
         else:
             self.rules[name] = function
 
@@ -257,7 +282,7 @@ class ParserBase(object):
         """
         if len(group) > 1:
 
-            def group_func(string):
+            def group_func(string, debug=False):
                 """ Match a series of literals or rules to an input
                 string. Each literal or group is called in succession.
                 If any call fails, no token is returned. Otherwise,
@@ -273,22 +298,23 @@ class ParserBase(object):
                 for item in group:
                     if is_literal(item):
                         # remove quotation marks before searching
-                        token, string = self.literal(item[1:-1], string)
-                        if token:
-                            master.add(token)
-                        else:
-                            return None, original
+                        token, string = self.literal(
+                            item[1:-1], string, debug=debug
+                            )
                     else:
                         # get the appropriate function
                         function = self.rules[item]
                         # generate a token
-                        token, string = function(string)
-                        if token:
-                            master.add(token)
-                        else:
-                            return None, original
-                
+                        token, string = function(string, debug=debug)
+                    if token:
+                        master.add(token)
+                    else:
+                        if debug:
+                            print(FAILED % item)
+                        return None, original
                 # return the master token and what remains of the string
+                if debug: 
+                    print(SUCCESS % name)
                 return master, string
             
         else:
@@ -296,7 +322,7 @@ class ParserBase(object):
             # get the single item
             item = group[0]
 
-            def group_func(string):
+            def group_func(string, debug=False):
                 """ Match a literal or rule against an input string.
                 If the call is successful, the resulting token is
                 returned. Otherwise, the function returns None. I
@@ -305,19 +331,27 @@ class ParserBase(object):
                 """
                 # remote quotation marks before searching
                 if is_literal(item):
-                    token, string = self.literal(item[1:-1], string)
+                    token, string = self.literal(
+                        item[1:-1], string, debug=debug
+                        )
                 else:
                     # get the appropriate function
                     function = self.rules[item]
                     # generate a token
-                    token, string = function(string)
+                    token, string = function(string, debug=debug)
                 if token:
                     token.name = name
                     # return the token and remains of the string
+                if debug: 
+                    base = SUCCESS if token else FAILED
+                    print(base % item)
                 return token, string
 
         # return the function that was created
-        return stripify(group_func) if self.ignore_ws else group_func
+        if self.ws_decorator:
+            return self.ws_decorator(group_func)
+        else:
+            return group_func
 
     def make_choice(self, choices):
         """ Create a function that handles a series or 'or' clauses.
@@ -327,14 +361,14 @@ class ParserBase(object):
         characters that were consumed. Returns a Token.
         """
 
-        def choice_func(string):
+        def choice_func(string, debug=False):
             """ Call each rule or literal in turn. Return the token
             from the first successful call, as well as the input string
             less consumed characters. If all calls fail, return None
             and the original input.
             """
             for item in choices:
-                token, string = item(string)
+                token, string = item(string, debug=debug)
                 if token:
                     # return a token if the function succeeds
                     return token, string
@@ -346,20 +380,23 @@ class ParserBase(object):
         # sub-function will remove whitespace prior to being called
         return choice_func
 
-    def literal(self, phrase, string):
+    def literal(self, phrase, string, debug=False):
         """ Look for a string literal at the beginning of an input
         string. If found, return a token and the remainder of the
         string. Otherwise, return None and the original string.
         """
         # handle whitespace if required
-        if self.ignore_ws:
-            string = string.lstrip()
+        if self.ws_handler:
+            string = self.ws_handler(string)
         if string.startswith(phrase):
             # if found, remove the phrase from the string
             string = string[len(phrase):]
             # return a token containing the phrase
+            if debug: 
+                print(SUCCESS % ('literal %s' % phrase))
             return Token('literal', phrase), string
-        # otherwise return nothing
+        if debug: 
+            print(FAILED % ('literal %s' % phrase))
         return None, string
 
     def grammar(self, grammar, sep=SEP, delimiter=DELIMITER):
