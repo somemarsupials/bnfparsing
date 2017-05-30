@@ -38,7 +38,7 @@ class TreeView:
         new.children = self.flatten_list(token)
         return new
 
-    def tokens(self, aggregate=[])
+    def tokens(self, aggregate=[]):
         for c in root.children:
             pass
 

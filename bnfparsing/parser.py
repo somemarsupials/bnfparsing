@@ -34,11 +34,31 @@ def rule(function):
     """
     setattr(function, RULE_ATTR, True)
     return function
+    
+
+def rule_with_option(ws_handling=True):
+    """ This decorator is used to mark bound methods as 'rules'.
+    This approach is used because function definitions within class
+    definitions cannot be appended to ParserBase.rules at the time of
+    class definition, as it hasn't been created. This seems better than
+    enforcing a naming convention.
+
+    Use the optional ws_handling parameter to indicate whether the
+    parser's whitespace handling should be applied to this rule.
+    """
+
+    def decorator(function):
+
+        setattr(function, RULE_ATTR, True)
+        function.ws_handling = ws_handling
+        return function
+
+    return decorator
 
 
 class ParserBase(object):
 
-    def __init__(self, ws_handler=None, treeview=True):
+    def __init__(self, ws_handler=None):
         """ This class serves as the basis of a BNF parser. It doesn't
         come populated with any rules. These can be created in one of
         three ways: use the 'new_rule' function, add in a custom rule
@@ -59,12 +79,10 @@ class ParserBase(object):
         to properly handle whitespace between tokens. See the whitespace
         module for more information on this. If no handler is passed,
         whitespace characters are treated as normal characters.
-
-        Use the treeview argument to determine whether the parser 
-        returns Tokens or TreeViews by default.
         """
+        # to contain parser rules
         self.rules = {}
-
+        self.no_handling = {}
         # store whitespace handling method
         self.ws_handler = ws_handler
         # if given, turn the handling method into a decorator
@@ -72,18 +90,17 @@ class ParserBase(object):
             self.ws_decorator = make_handler(ws_handler)
         else:
             self.ws_decorator = None
+        # register functions marked as rules
         for item in dir(self):
             function = getattr(self, item)
-            # check for functions marked as rules
             if hasattr(function, RULE_ATTR):
-                # append any rules that are found
-                if self.ws_decorator:
-                    self.rules[item] = self.ws_decorator(function)
-                else:
-                    self.rules[item] = function
-        # allocate remaining attributes
+                # apply whitespace handling if required
+                if self.ws_decorator and function.ws_handling:
+                    function = self.ws_decorator(function)
+                # store in rule dictionary
+                self.rules[item] = self.enable_debug(function)
+        # set main rule to nothing
         self.main = None
-        self.treeview = treeview
 
     def parse_token(self, string, main=None, debug=False, 
             allow_partial=False):
@@ -99,29 +116,29 @@ class ParserBase(object):
         # otherwise use the class' main function
         elif self.main and self.main in self.rules:
             main_function = self.rules[self.main]
-        elif self.main:
-            # if main has been specified but does not exist 
+        # if main has been specified but does not exist 
+        elif main or self.main:
             raise BadEntryError('entry point does not exist')
+        # if the parser is called without any rules
+        elif not self.rules:
+            raise BadEntryError('no rules exist')
+        # if main has not been specified
         else:
-            # if main has not been specified
             raise BadEntryError('no entry point specified')
         # call the main function
         if debug:
-            calling = main if main else self.main
-            print('\nCalling main function: %s with %s' % (
-                calling, string[:CHARS]
-                ))
+            # debug message to indicate the entry point
+            params = (main if main else self.main, string[:CHARS])
+            print('\nCalling main function "%s" with "%s"' % params)
+            del params
         # we use NULL as a 'start-of-string' marker
         if self.ws_handler:
             string = NULL + string
         token, unconsumed = main_function(string, debug)
-        # if tokens are found but the string has not been 
-        # consumed entirely
+        # if the input string has not been entirely consumed
         if token and unconsumed and not allow_partial:
-            raise IncompleteParseError(
-                'characters "%s" remaining' % unconsumed
-            )
-        # if the string does not match
+            raise IncompleteParseError('"%s" remaining' % unconsumed)
+        # if the main rule cannot successfully parse the input string
         elif token is None:
             raise NotFoundError('%s not valid' % string)
         return token
@@ -133,6 +150,9 @@ class ParserBase(object):
         An exception is raised if any characters in the string are not 
         consumed, unless the allow_partial argument is True. Returns a 
         TreeView.
+
+        Note that this converts the output of 'parse_token' into a
+        TreeView object - it is otherwise functionally equivalent.
         """
         return TreeView(
             self.parse_token(string, main, debug, allow_partial)
@@ -141,21 +161,24 @@ class ParserBase(object):
     def enable_debug(self, function, debug=False):
         """ A decorator-like function that accepts a user-defined 
         function and converts it into a function that accepts and uses
-        a debug parameter.
+        a debug parameter. This is used in conjunction with the
+        'from_function' method.
         """
-        
+
         @wraps(function)
-        def new_function(string, debug=False):
+        def debug_enabled_function(string, debug=False):
+            # call the function
             token, string = function(string)
+            # print the appropriate debug message
             if token and debug:
                 print(SUCCESS % (token, string[:CHARS]))
             elif debug:
                 print(FAILED % (token, string[:CHARS]))
             return token, string
 
-        return new_function
+        return debug_enabled_function
 
-    def from_function(self, function, name=None, ws_handling=False,
+    def from_function(self, function, name=None, ws_handling=True,
             main=False, force=False):
         """ Install a rule from an existing function. This should be
         used in cases where customised functionality is required. For
@@ -182,11 +205,9 @@ class ParserBase(object):
         function = self.enable_debug(function)
         # whitespace handling
         if self.ws_decorator and ws_handling:
-            self.rules[name] = self.ws_decorator(function)
-        elif ws_handling:
-            raise AttributeError('no whitespace handler assigned')
-        else:
-            self.rules[name] = function
+            function = self.ws_decorator(function)
+        # register rule
+        self.rules[name] = function
 
     def new_rule(self, name, rule, main=False, force=False):
         """ Generate and register a rule function from a string-based 
@@ -261,13 +282,13 @@ class ParserBase(object):
                     if is_literal(item):
                         # remove quotation marks before searching
                         token, string = self.literal(
-                            item[1:-1], string, debug=debug
+                            item[1:-1], string, debug
                             )
                     else:
                         # get the appropriate function
                         function = self.rules[item]
                         # generate a token
-                        token, string = function(string, debug=debug)
+                        token, string = function(string, debug)
                     if token:
                         master.add(token)
                     else:
@@ -294,13 +315,13 @@ class ParserBase(object):
                 # remote quotation marks before searching
                 if is_literal(item):
                     token, string = self.literal(
-                        item[1:-1], string, debug=debug
+                        item[1:-1], string, debug
                         )
                 else:
                     # get the appropriate function
                     function = self.rules[item]
                     # generate a token
-                    token, string = function(string, debug=debug)
+                    token, string = function(string, debug)
                 if token:
                     token.token_type = name
                 # return the token and remains of the string
@@ -328,7 +349,7 @@ class ParserBase(object):
             and the original input.
             """
             for item in choices:
-                token, string = item(string, debug=debug)
+                token, string = item(string, debug)
                 if token:
                     # return a token if the function succeeds
                     return token, string
@@ -367,6 +388,9 @@ class ParserBase(object):
         In short, give a space-delimited series of rule names or 
         literals, which must be surrounded by quote marks. See the
         new_rule function for more information.
+        
+        Use the main parameter to specify one function as the main for
+        the parser, i.e. the first function called when parsing.
         """
         for rule in grammar.strip().split(delimiter):
             name, parts = rule.split(SEP)

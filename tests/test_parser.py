@@ -2,7 +2,7 @@
 
 import unittest
 
-from bnfparsing.parser import ParserBase
+from bnfparsing.parser import ParserBase, rule
 from bnfparsing.token import Token
 from bnfparsing.exceptions import *
 
@@ -163,3 +163,19 @@ class TestParser(unittest.TestCase):
         p = ParserBase()
         p.from_function(parse_hello, main=True)
         self.check(p, *STANDARD)
+
+    def test_rule_decorator(self):
+        """ Test rules created using the rule decorator. """
+        s = 'then'
+        
+        class Subclass(ParserBase):
+
+            @rule
+            def then(self, string):
+                if string[:len(s)] == s:
+                    return Token(s, s), string[len(s):]
+                return None, string
+
+        p = Subclass()
+        p.parse_token('then', main=s)
+        
