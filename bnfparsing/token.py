@@ -48,6 +48,11 @@ class Token:
         for child in self.children:
             if id(child) == match:
                 self.children.remove(child)
+        child.parent = None
+
+    def has_under(self):
+        """ True if the token has any children. """
+        return len(self.children) > 0
 
     def value(self, with_whitespace=False):
         """ For a literal (i.e. a token with self.text) return the
@@ -76,7 +81,7 @@ class Token:
         return iter(self.value())
 
     def __repr__(self):
-        return 'Token {}: "{}"'.format(self.token_type, self.value())
+        return 'Token %s (%s)' % (self.token_type, self.value())
 
     def __bool__(self):
         """ False for empty tokens, i.e. not token_type or text. """

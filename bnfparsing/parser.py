@@ -4,6 +4,7 @@
 from functools import wraps
 
 # package
+from .utils import NULL, head, is_quote, is_literal, split_tokens
 from .token import Token
 from .whitespace import make_handler
 from .treeview import TreeView
@@ -14,24 +15,14 @@ __all__ = ['ParserBase', 'rule']
 # attribute name used to indicate parsing rules
 RULE_ATTR = 'is_rule'
 
-# a character that never occurs in regular strings
-NULL = chr(0)
-
 # for grammars
 SEP = ':='
 DELIMITER = '\n'
 
 # for debug
-SUCCESS = 'success: %s'
-FAILED = 'failed: %s'
-
-
-def head(string):
-    """ Split a string into the first and following characters. If
-    the string is empty or no string is passed, return None and the
-    rest of the string.
-    """
-    return (string[0], string[1:]) if string else (None, string)
+SUCCESS = 'success: "%s" leaving "%s"'
+FAILED = 'failed: "%s" leaving "%s"'
+CHARS = 50
 
 
 def rule(function):
@@ -43,52 +34,6 @@ def rule(function):
     """
     setattr(function, RULE_ATTR, True)
     return function
-
-
-def is_quote(c):
-    """ Verify a string as a quotation mark. True for single or double 
-    quotes. Designed to work with strings of length 1. """
-    return c in "'\""
-
-
-def is_literal(c):
-    """ Verify a string as a literal. True for strings surrounded by 
-    double quotes. 
-    """
-    return c[0] == '"' and c[-1] == '"' and len(c) > 1
-
-
-def split_tokens(string):
-    """ Convert a series of space-delimited token names and literals
-    into a list of strings. The built-in str.split() is inadequate for
-    this task because it cannot distinguish spaces within literals.
-
-    The loop replaces spaces with the NULL character and places 
-    finalised in the output list, in reverse. This is then split on the 
-    NULL character to get separated token names.
-    """
-    # replace escaped double quotes
-    replaced = string.replace('\\"', NULL)
-    groups = replaced.split('"')
-    tokens = []
-    # if the number of groups is even then there is an issue
-    if len(groups) % 2 == 0:
-        raise ValueError('unfinished literal %s' % string)
-    # keep track of whether in a literal
-    # this alternates between items in the groups list
-    in_literal = False
-    for g in groups:
-        # restore quotes
-        g = g.replace(NULL, '"')
-        # split groups outside of literals
-        if not in_literal and g and not g.isspace():
-            tokens.extend(g.strip().split())
-        # preserve groups in literals
-        elif in_literal:
-            tokens.append('"{}"'.format(g))
-        # alternate
-        in_literal = not(in_literal)
-    return tokens
 
 
 class ParserBase(object):
@@ -140,13 +85,13 @@ class ParserBase(object):
         self.main = None
         self.treeview = treeview
 
-    def parse(self, string, main=None, debug=False, 
-            allow_partial=False, treeview=None):
+    def parse_token(self, string, main=None, debug=False, 
+            allow_partial=False):
         """ Create a syntax tree by parsing a string. Parses the input
         string using the role indicated by main, or otherwise self.main. 
         An exception is raised if any characters in the string are not 
-        consumed, unless the allow_partial argument is True. 
-        Returns a Token.
+        consumed, unless the allow_partial argument is True. Returns a 
+        Token.
         """
         # search for the specified function to start with
         if main and main in self.rules:
@@ -161,6 +106,14 @@ class ParserBase(object):
             # if main has not been specified
             raise BadEntryError('no entry point specified')
         # call the main function
+        if debug:
+            calling = main if main else self.main
+            print('\nCalling main function: %s with %s' % (
+                calling, string[:CHARS]
+                ))
+        # we use NULL as a 'start-of-string' marker
+        if self.ws_handler:
+            string = NULL + string
         token, unconsumed = main_function(string, debug)
         # if tokens are found but the string has not been 
         # consumed entirely
@@ -171,13 +124,20 @@ class ParserBase(object):
         # if the string does not match
         elif token is None:
             raise NotFoundError('%s not valid' % string)
-        # if the treeview argument is passed, use that to determine
-        # whether to return a TreeView or a token, else use 
-        # self.treeview to decide
-        if treeview is None:
-            treeview = self.treeview
-        return TreeView(token) if treeview else token
+        return token
 
+    def parse(self, string, main=None, debug=False, 
+            allow_partial=False):
+        """ Create a syntax tree by parsing a string. Parses the input
+        string using the role indicated by main, or otherwise self.main. 
+        An exception is raised if any characters in the string are not 
+        consumed, unless the allow_partial argument is True. Returns a 
+        TreeView.
+        """
+        return TreeView(
+            self.parse_token(string, main, debug, allow_partial)
+            )
+    
     def enable_debug(self, function, debug=False):
         """ A decorator-like function that accepts a user-defined 
         function and converts it into a function that accepts and uses
@@ -188,14 +148,14 @@ class ParserBase(object):
         def new_function(string, debug=False):
             token, string = function(string)
             if token and debug:
-                print(SUCCESS % function.__name__)
+                print(SUCCESS % (token, string[:CHARS]))
             elif debug:
-                print(FAILED % function.__name__)
+                print(FAILED % (token, string[:CHARS]))
             return token, string
 
         return new_function
 
-    def from_function(self, function, name=None, 
+    def from_function(self, function, name=None, ws_handling=False,
             main=False, force=False):
         """ Install a rule from an existing function. This should be
         used in cases where customised functionality is required. For
@@ -221,8 +181,10 @@ class ParserBase(object):
         # debug handling
         function = self.enable_debug(function)
         # whitespace handling
-        if self.ws_decorator:
+        if self.ws_decorator and ws_handling:
             self.rules[name] = self.ws_decorator(function)
+        elif ws_handling:
+            raise AttributeError('no whitespace handler assigned')
         else:
             self.rules[name] = function
 
@@ -309,12 +271,12 @@ class ParserBase(object):
                     if token:
                         master.add(token)
                     else:
-                        if debug:
-                            print(FAILED % item)
+                        if debug: 
+                            print(FAILED % (item, string[:CHARS]))
                         return None, original
                 # return the master token and what remains of the string
                 if debug: 
-                    print(SUCCESS % name)
+                    print(SUCCESS % (token, string[:CHARS]))
                 return master, string
             
         else:
@@ -340,18 +302,16 @@ class ParserBase(object):
                     # generate a token
                     token, string = function(string, debug=debug)
                 if token:
-                    token.name = name
-                    # return the token and remains of the string
-                if debug: 
-                    base = SUCCESS if token else FAILED
-                    print(base % item)
+                    token.token_type = name
+                # return the token and remains of the string
+                if debug and token: 
+                    print(SUCCESS % (token, string[:CHARS]))
+                elif debug:
+                    print(FAILED % (item, string[:CHARS]))
                 return token, string
 
         # return the function that was created
-        if self.ws_decorator:
-            return self.ws_decorator(group_func)
-        else:
-            return group_func
+        return group_func
 
     def make_choice(self, choices):
         """ Create a function that handles a series or 'or' clauses.
@@ -385,6 +345,7 @@ class ParserBase(object):
         string. If found, return a token and the remainder of the
         string. Otherwise, return None and the original string.
         """
+        original = str(string)
         # handle whitespace if required
         if self.ws_handler:
             string = self.ws_handler(string)
@@ -392,14 +353,10 @@ class ParserBase(object):
             # if found, remove the phrase from the string
             string = string[len(phrase):]
             # return a token containing the phrase
-            if debug: 
-                print(SUCCESS % ('literal %s' % phrase))
             return Token('literal', phrase), string
-        if debug: 
-            print(FAILED % ('literal %s' % phrase))
-        return None, string
+        return None, original
 
-    def grammar(self, grammar, sep=SEP, delimiter=DELIMITER):
+    def grammar(self, grammar, sep=SEP, delimiter=DELIMITER, main=None):
         """ Generate a series of rules from a grammar. Grammars should
         be given as a series of lines delineated by a newline, or
         whatever is passed as delimiter. Each line should contain a rule
@@ -413,5 +370,7 @@ class ParserBase(object):
         """
         for rule in grammar.strip().split(delimiter):
             name, parts = rule.split(SEP)
-            self.new_rule(name.strip(), parts.strip())
-    
+            name = name.strip()
+            if main and name == main:
+                self.main = main
+            self.new_rule(name, parts.strip())

@@ -19,5 +19,5 @@ class IncompleteParseError(ParserBaseException):
 class NotFoundError(ParserBaseException):
     pass
 
-class DelimiterException(ParserBaseException):
+class DelimiterError(ParserBaseException):
     pass

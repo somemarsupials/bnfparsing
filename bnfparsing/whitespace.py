@@ -1,14 +1,15 @@
 # -*- encoding: utf-8 -*-
 
 from functools import wraps
-from .exceptions import DelimiterException
+from .utils import NULL
+from .exceptions import DelimiterError
 
 """ This module contains decorators used to handle the whitespace
 between tokens, when parsing.
 """
 
 
-def make_handler(handling_method, doc_line=None):
+def make_handler(handling_method):
     """ Create a decorator that handles whitespace between tokens using
     a whitespace-handling function. The handler should accept a string
     as input and remove as much whitespace as required, returning the
@@ -26,9 +27,12 @@ def make_handler(handling_method, doc_line=None):
                 'method "%s".' % handling_method.__name__
             )
             new_function.__doc__ += addition
-
-            return function(handling_method(string), debug)
-
+            
+            token, unused = function(handling_method(string), debug)
+            if token:
+                return token, unused
+            return None, string
+        
         return new_function 
 
     # return new function
@@ -41,16 +45,20 @@ def ignore(string):
     any whitespace is stripped from the input string before the next 
     token is parsed.
     """
+    if string and string[0] == NULL:
+        string = string[1:]
     return string.lstrip()    
 
 
-def ignore_specific(whitespace, ignore=False):
+def ignore_specific(whitespace):
     """ A whitespace handler that ignores certain whitespace between 
     tokens. This means that it doesn't matter if there is whitespace or 
     not - the chosen whitespace is stripped from the input string before 
     the next token is parsed.
     """
     def handler(string):
+        if string and string[0] == NULL:
+            string = string[1:]
         return string.lstrip(whitespace)
 
     return handler
@@ -68,14 +76,11 @@ def require(whitespace, ignore=False):
     n = len(whitespace)
 
     def handler(string):
-        if string[:n] != whitespace:
-            raise DelimiterException
+        if string and string[0] == NULL:
+            return string[1:]
+        elif string[:n] != whitespace:
+            raise DelimiterError('"%s..." not delimited' % string[:50])
         return string[n:].lstrip() if ignore else string[n:]
-
+    
     return handler
 
-
-# create some potentially useful handlers
-one_space = require(' ')
-one_space_or_more = require(' ', ignore=True)
-ignore_spaces = ignore_specific(' ')

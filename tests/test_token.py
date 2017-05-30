@@ -31,6 +31,27 @@ class TokenTestSuite(TestCase):
             msg='master not added as parent'
             )
 
+    def test_child_indicator(self):
+        """ Test the has_under method. """
+        master = Token(MASTER)
+        self.assertFalse(master.has_under(), 
+            msg='failed for empty token'
+            )
+        child = Token(CHILD)
+        master.add(child)
+        self.assertTrue(master.has_under(),
+            msg='failed for token with children'
+            )
+
+    def test_child_removal(self):
+        """ Test removal of children. """
+        master = Token(MASTER)
+        child = Token(CHILD)
+        master.add(child)
+        master.remove(child)
+        self.assertFalse(master.has_under(), msg='child removal failed')
+        self.assertIsNone(child.parent, msg='parent removal failed')
+
     def test_value_literal(self):
         """ Test the value method of literals. """
         token = Token(text=MASTER)
