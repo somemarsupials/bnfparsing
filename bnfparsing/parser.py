@@ -6,7 +6,6 @@ from functools import wraps
 # package
 from .utils import NULL, head, is_quote, is_literal, split_tokens
 from .token import Token
-from .whitespace import make_handler
 from .treeview import TreeView
 from .exceptions import *
 
@@ -14,6 +13,7 @@ __all__ = ['ParserBase', 'rule']
         
 # attribute name used to indicate parsing rules
 RULE_ATTR = 'is_rule'
+WS_ATTR = 'ws_handling'
 
 # for grammars
 SEP = ':='
@@ -48,9 +48,10 @@ def rule_with_option(ws_handling=True):
     """
 
     def decorator(function):
-
-        setattr(function, RULE_ATTR, True)
-        function.ws_handling = ws_handling
+        # apply normal decoration
+        function = rule(function)
+        # set specific attributes
+        setattr(function, RULE_ATTR, ws_handling)
         return function
 
     return decorator
@@ -85,22 +86,24 @@ class ParserBase(object):
         self.no_handling = {}
         # store whitespace handling method
         self.ws_handler = ws_handler
-        # if given, turn the handling method into a decorator
-        if ws_handler:
-            self.ws_decorator = make_handler(ws_handler)
-        else:
-            self.ws_decorator = None
         # register functions marked as rules
         for item in dir(self):
             function = getattr(self, item)
             if hasattr(function, RULE_ATTR):
-                # apply whitespace handling if required
-                if self.ws_decorator and function.ws_handling:
-                    function = self.ws_decorator(function)
+                new_function = self.enable_debug(function)
                 # store in rule dictionary
-                self.rules[item] = self.enable_debug(function)
-        # set main rule to nothing
+                self.rules[item] = new_function
+                # register rules that don't need whitespace handling
+                if hasattr(function, WS_ATTR) and \
+                        getattr(function, WS_ATTR):
+                    self.no_handling[item] = new_function
         self.main = None
+
+    def set_ws_handler(self, handler):
+        """ Change or set the function used for handling whitespace
+        in between tokens.
+        """
+        self.ws_handler = handler
 
     def parse_token(self, string, main=None, debug=False, 
             allow_partial=False):
@@ -144,7 +147,7 @@ class ParserBase(object):
         return token
 
     def parse(self, string, main=None, debug=False, 
-            allow_partial=False):
+            allow_partial=False, no_aggregate=False):
         """ Create a syntax tree by parsing a string. Parses the input
         string using the role indicated by main, or otherwise self.main. 
         An exception is raised if any characters in the string are not 
@@ -154,10 +157,17 @@ class ParserBase(object):
         Note that this converts the output of 'parse_token' into a
         TreeView object - it is otherwise functionally equivalent.
         """
-        return TreeView(
-            self.parse_token(string, main, debug, allow_partial)
-            )
-    
+
+        # create a treeview from a token tree
+        tokens = self.parse_token(string, main, debug, allow_partial)
+        # create a list of tokens that should be aggregated - this means
+        # that they 
+        if no_aggregate:
+            aggregate = []
+        else:
+            aggregate = list(self.no_handling.keys())
+        return TreeView(tokens, aggregate=aggregate)
+
     def enable_debug(self, function, debug=False):
         """ A decorator-like function that accepts a user-defined 
         function and converts it into a function that accepts and uses
@@ -204,8 +214,8 @@ class ParserBase(object):
         # debug handling
         function = self.enable_debug(function)
         # whitespace handling
-        if self.ws_decorator and ws_handling:
-            function = self.ws_decorator(function)
+        if ws_handling:
+            self.no_handling[name] = function
         # register rule
         self.rules[name] = function
 
@@ -287,6 +297,9 @@ class ParserBase(object):
                     else:
                         # get the appropriate function
                         function = self.rules[item]
+                        # whitespace handling
+                        if item in self.no_handling and self.ws_handler:
+                            string = self.ws_handler(string)
                         # generate a token
                         token, string = function(string, debug)
                     if token:
@@ -320,6 +333,9 @@ class ParserBase(object):
                 else:
                     # get the appropriate function
                     function = self.rules[item]
+                    # whitespace handling
+                    if item in self.no_handling and self.ws_handler:
+                        string = self.ws_handler(string)
                     # generate a token
                     token, string = function(string, debug)
                 if token:

@@ -9,36 +9,6 @@ between tokens, when parsing.
 """
 
 
-def make_handler(handling_method):
-    """ Create a decorator that handles whitespace between tokens using
-    a whitespace-handling function. The handler should accept a string
-    as input and remove as much whitespace as required, returning the
-    processed string. Returns a function. 
-    """
-    # create a decorator that pre-processes the string before it's
-    # handed to the parsing function
-    def wrapper(function):
-        
-        @wraps(function)
-        def new_function(string, debug=False):
-
-            # modify the docstring if an amendment given
-            addition = ('\nAmended to handle whitespace using '
-                'method "%s".' % handling_method.__name__
-            )
-            new_function.__doc__ += addition
-            
-            token, unused = function(handling_method(string), debug)
-            if token:
-                return token, unused
-            return None, string
-        
-        return new_function 
-
-    # return new function
-    return wrapper
-
-
 def ignore(string):
     """ A whitespace handler that ignores the whitespace between tokens. 
     This means that it doesn't matter if there is whitespace or not - 

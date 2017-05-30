@@ -110,8 +110,7 @@ class TestWhitespace(unittest.TestCase):
         with self.assertRaises(NotFoundError, msg='ignored spaces'):
             p.parse_token('_if then')
         # check that spaces still aren't ignored with a handler
-        p = Subclass(ws_handler=ignore)
-        p.new_rule('both', '_if then', main=True)
+        p.set_ws_handler(ignore)
         with self.assertRaises(NotFoundError, 
                 msg='ignored spaces with handler'):
             p.parse_token('_if then')
