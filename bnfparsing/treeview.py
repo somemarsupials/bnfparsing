@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from types import MethodType
 from .token import Token
 
 
@@ -11,11 +12,7 @@ class TreeView:
         
         DETAILS OF METHODS?
         """
-        # get attributes from root
-        for item in dir(root):
-            if not item.startswith('__') and not item.endswith('__'):
-                setattr(self, item, getattr(root, item))
-        self.value == Token.value
+        self.value = root.value
         self.root = root
         self.aggregate = aggregate
 
@@ -29,37 +26,35 @@ class TreeView:
         """
         out = []
         for c in token.children:
+            # for tokens with matching token types
             if c.token_type == token.token_type:
-                out.append(self.flatten_list(c))
+                # use those without children
+                if not c.has_under():
+                    out.append(c)
+                # flatten those with children
+                else:
+                    out.extend(self.flatten_list(c))
+            # otherwise keep the child
             else:
-                out.append(c)
+                out.append(self.flatten(c))
         return out
 
-    def flatten_token(self, token):
+    def flatten(self, token=None):
         """ Convert tokens created by recursive rules into a flat token.
         For example, a token created by the rule "a := b a | b" might
         create a token with the structure "a -> b a -> b", where "->"
         denotes children of tokens. The flatten would convert this to a
         token with children "a -> b b".
         """
+        if not token:
+            token = self.root
         # create a new token with same type
-        new = Token(token_type=token.token_type)
+        new = Token(token_type=token.token_type, text=token.text)
         # replace children with flattened children
         new.children = self.flatten_list(token)
         return new
 
-    def flatten(self):
-        """ Flatten the root token. """
-        self.root = self.flatten_token(self.root)
-
-    def tokens(self, aggregate=None, as_str=False):
-        """ Get ordered tokens for the root token. See get_tokens for
-        more information.
-        """
-        tokens = self.get_tokens(self.root, aggregate, as_str)
-        return tokens
-
-    def get_tokens(self, token, aggregate=None, as_str=False):
+    def tokens(self, token=None, aggregate=None, as_str=False):
         """ Generate an ordered list of the lowest-level child tokens
         beneath the given token. In general, these should all be literal
         expressions.
@@ -74,6 +69,8 @@ class TreeView:
         Use the as_str option to return a list of strings instead of
         tokens.
         """
+        if not token:
+            token = self.root
         # use the TreeView aggregation if none given
         if not aggregate:
             aggregate = self.aggregate
@@ -107,13 +104,21 @@ class TreeView:
         if not token:
             token = self.root
         output = []
-        if index == 0:
-            print(token)
+        if index == 0 or not token.has_under():
             output.append(token)
         else:
             for c in token.children:
                 output.extend(self.level(index - 1, c, as_str))
         return output
+
+    def __getattribute__(self, attr):
+        """ Get attributes from self, then self.root. """
+        try:
+            return object.__getattribute__(self, attr)
+        except AttributeError:
+            if hasattr(self.root, attr):
+                return getattr(self.root, attr)
+        raise AttributeError('%s not found' % attr)
 
     def __getitem__(self, index):
         """ Return the indexed child. """
@@ -121,4 +126,4 @@ class TreeView:
 
     def __repr__(self):
         """ Show value and content of token. """
-        return 'TreeView(%s: %s)' % (self.token_type, self.value())
+        return 'TreeView(%s: %s)' % (self.token_type, self.root.value())

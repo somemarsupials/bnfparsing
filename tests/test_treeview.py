@@ -47,7 +47,7 @@ class SampleParser(ParserBase):
 
 # sample sentences to be parsed
 SIMPLE = 'Jane liked Rajesh .'
-SAMPLE = 'if 23 > 45 then 4 + 5 + 6'
+SAMPLE = 'if 23 > 45 then 4 + 5 + 6 + 5 + 65'
 
 
 class TestTreeview(unittest.TestCase):
@@ -92,14 +92,39 @@ class TestTreeview(unittest.TestCase):
 
     def test_level(self):
         """ Test the level method. """
-        tv = self.parser.parse(SAMPLE)
+        tv = self.simple.parse(SIMPLE)
+        # try the level 0 - i.e. the root node
         self.assertEqual(tv.level(0), [tv.root], msg='level 0 failed')
-        print(tv.level(2))
+        # try level 1
+        self.assertEqual(len(tv.level(1)), len(SIMPLE.split()),
+            msg='level 1 failed'
+            )
+        # try a high level - should be the same as level 1 for a simple
+        # example
+        self.assertEqual(len(tv.level(10)), len(SIMPLE.split()),
+            msg='high level test failed'
+            )
 
     def test_flatten(self):
         """ Test the flatten method. """
-        tv = self.parser.parse(SAMPLE)
+        p = ParserBase()
+        string = 'aaaaaa'
+        p.new_rule('as', '"a" as | "a"', main=True)
+        tv = p.parse(string)
         tv.flatten()
+        self.assertEqual(
+            string, ''.join(c.value() for c in tv.children),
+            msg='flatten failed for simple example'
+            )
+
+    def test_flatten_complex(self):
+        """ A more complicated test of the flatten method. """
+        tv = self.parser.parse(SAMPLE)
+        for i in range(5):
+            print(tv.level(i, as_str=True))
+        tv = TreeView(tv.flatten())
+        for i in range(5):
+            print(tv.level(i, as_str=True))
 
 def tearDown(self):
         """ Remove the parser. """
