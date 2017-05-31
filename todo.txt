@@ -1,1 +1,0 @@
-- reform debug - pass as argument, not as class attribute!
