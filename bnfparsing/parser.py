@@ -105,8 +105,8 @@ class ParserBase(object):
         """
         self.ws_handler = handler
 
-    def parse_token(self, string, main=None, debug=False, 
-            allow_partial=False):
+    def parse(self, string, main=None, debug=False, 
+            allow_partial=False, no_aggregate=False):
         """ Create a syntax tree by parsing a string. Parses the input
         string using the role indicated by main, or otherwise self.main. 
         An exception is raised if any characters in the string are not 
@@ -144,29 +144,12 @@ class ParserBase(object):
         # if the main rule cannot successfully parse the input string
         elif token is None:
             raise NotFoundError('%s not valid' % string)
-        return token
-
-    def parse(self, string, main=None, debug=False, 
-            allow_partial=False, no_aggregate=False):
-        """ Create a syntax tree by parsing a string. Parses the input
-        string using the role indicated by main, or otherwise self.main. 
-        An exception is raised if any characters in the string are not 
-        consumed, unless the allow_partial argument is True. Returns a 
-        TreeView.
-
-        Note that this converts the output of 'parse_token' into a
-        TreeView object - it is otherwise functionally equivalent.
-        """
-
-        # create a treeview from a token tree
-        tokens = self.parse_token(string, main, debug, allow_partial)
-        # create a list of tokens that should be aggregated - this means
-        # that they 
+        # add list of tokens to be aggregated
         if no_aggregate:
             aggregate = []
         else:
             aggregate = list(self.no_handling.keys())
-        return TreeView(tokens, aggregate=aggregate)
+        return token
 
     def enable_debug(self, function, debug=False):
         """ A decorator-like function that accepts a user-defined 

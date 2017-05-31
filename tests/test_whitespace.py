@@ -105,13 +105,13 @@ class TestWhitespace(unittest.TestCase):
         p = Subclass()
         p.new_rule('both', '_if then', main=True)
         # should work
-        p.parse_token('_ifthen')
+        p.parse('_ifthen')
         # check that spaces aren't ignored when they shouldn't be
         with self.assertRaises(NotFoundError, msg='ignored spaces'):
-            p.parse_token('_if then')
+            p.parse('_if then')
         # check that spaces still aren't ignored with a handler
         p.set_ws_handler(ignore)
         with self.assertRaises(NotFoundError, 
                 msg='ignored spaces with handler'):
-            p.parse_token('_if then')
+            p.parse('_if then')
 

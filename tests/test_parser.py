@@ -24,7 +24,7 @@ class TestParser(unittest.TestCase):
         the match argument, fails on the fail argument and correctly
         reports an IncompleteParseError on the extra argument.
         """
-        token = p.parse_token(string)
+        token = p.parse(string)
         # check that the parse works
         self.assertTrue(token == match, 
             msg='parse failed for literal'
@@ -33,12 +33,12 @@ class TestParser(unittest.TestCase):
         if fail:
             with self.assertRaises(NotFoundError, 
                     msg='matched literal where none exists'):
-                p.parse_token(fail)
+                p.parse(fail)
         # verify incomplete parse check
         if extra:
             with self.assertRaises(IncompleteParseError, 
                     msg='consumed more characters than expected'):
-                p.parse_token(extra)
+                p.parse(extra)
 
     def test_rule_addition(self):
         """ Check that rules can be added to the rule dictionary. """
@@ -66,7 +66,7 @@ class TestParser(unittest.TestCase):
         p.new_rule('bad', 'notarule')
         with self.assertRaises(KeyError, 
                 msg='non-existent rule did not raise error'):
-            p.parse_token('any text')
+            p.parse('any text')
 
     def test_rule_sequence(self):
         """ Test a rule that contains a sequence of tokens. """
@@ -123,32 +123,32 @@ class TestParser(unittest.TestCase):
         p = ParserBase()
         p.grammar(GRAMMAR)
         # these should all succeed
-        p.parse_token('https://www.abcabc.com')
-        p.parse_token('https://www.bcaabc.co.uk')
-        p.parse_token('http://www.a.fr')
+        p.parse('https://www.abcabc.com')
+        p.parse('https://www.bcaabc.co.uk')
+        p.parse('http://www.a.fr')
         # these should all fail
         with self.assertRaises(NotFoundError):
-            p.parse_token('www.abc.com')
+            p.parse('www.abc.com')
         with self.assertRaises(NotFoundError):
-            p.parse_token('https:/www.abcabc.com')
+            p.parse('https:/www.abcabc.com')
         with self.assertRaises(NotFoundError):
-            p.parse_token('https://www.abcd.co.uk')
+            p.parse('https://www.abcd.co.uk')
         with self.assertRaises(NotFoundError):
-            p.parse_token('http://www..com')
+            p.parse('http://www..com')
         with self.assertRaises(IncompleteParseError):
-            p.parse_token('https://www.a.fra')
+            p.parse('https://www.a.fra')
 
     def test_pipe_escaping(self):
         """ Try using an escaped pipe in a rule. """
         p = ParserBase()
         p.new_rule(r'escaped', '"pipe: " "\|"')
-        p.parse_token('pipe: |')
+        p.parse('pipe: |')
 
     def test_quote_escaping(self):
         """ Try using an escaped double-quote in a rule. """
         p = ParserBase()
         p.new_rule('quote', r'"\""')
-        p.parse_token('"')
+        p.parse('"')
 
     def test_rule_from_function(self):
         """ Check the operation of custom rules. """
@@ -177,5 +177,5 @@ class TestParser(unittest.TestCase):
                 return None, string
 
         p = Subclass()
-        p.parse_token('then', main=s)
+        p.parse('then', main=s)
         

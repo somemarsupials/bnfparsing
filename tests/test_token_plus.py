@@ -4,7 +4,6 @@ import unittest
 from bnfparsing.parser import ParserBase
 from bnfparsing.common import digit_run
 from bnfparsing.whitespace import ignore
-from bnfparsing.treeview import TreeView
 from bnfparsing.exceptions import *
 
 SIMPLE_GRAMMAR = """
@@ -50,58 +49,45 @@ SIMPLE = 'Jane liked Rajesh .'
 SAMPLE = 'if 23 > 45 then 4 + 5 + 6 + 5 + 65'
 
 
-class TestTreeview(unittest.TestCase):
+class TestTokenAdvanced(unittest.TestCase):
 
     def setUp(self):
         """ Add parsers to the test case. """
         self.simple = SampleSimpleParser()
         self.parser = SampleParser()
 
-    def test_make_treeview(self):
-        """ Generate a TreeView. """
-        self.parser.parse(SAMPLE)
-
-    def test_tokens(self):
-        tv = self.simple.parse(SIMPLE)
+    def test_series(self):
+        token = self.simple.parse(SIMPLE)
         compare = [s.strip() for s in SIMPLE.split()]
-        tokens = [t.value() for t in tv.tokens()]
+        tokens = [t.value() for t in token.series()]
         # test normal tokens method
         self.assertEqual(tokens, compare,
             msg='tokens not generated as expected'
             )
         # test with 'as_str' parameter
-        self.assertEqual(tv.tokens(as_str=True), compare,
+        self.assertEqual(token.series(as_str=True), compare,
             msg='tokens not generated as strings as expected'
             )
 
     def test_find(self):
         """ Test the find method of the TreeView. """
-        tv = self.parser.parse(SAMPLE)
-        found = tv.find('digit_run', as_str=True)
+        token = self.parser.parse(SAMPLE)
+        found = token.find('digit_run', as_str=True)
         numbers = [n for n in SAMPLE.split() if n.isdigit()]
-
         self.assertEqual(found, numbers, msg='find method failed')
-
-    def test_iter(self):
-        """ Test iterating over children as TreeViews. """
-        tv = self.parser.parse(SAMPLE)
-        for child in tv.iter_treeview():
-            self.assertEqual(type(child), TreeView, 
-                msg='children are not TreeViews'
-                )
 
     def test_level(self):
         """ Test the level method. """
-        tv = self.simple.parse(SIMPLE)
+        token = self.simple.parse(SIMPLE)
         # try the level 0 - i.e. the root node
-        self.assertEqual(tv.level(0), [tv.root], msg='level 0 failed')
+        self.assertEqual(token.level(0), [token], msg='level 0 failed')
         # try level 1
-        self.assertEqual(len(tv.level(1)), len(SIMPLE.split()),
+        self.assertEqual(len(token.level(1)), len(SIMPLE.split()),
             msg='level 1 failed'
             )
         # try a high level - should be the same as level 1 for a simple
         # example
-        self.assertEqual(len(tv.level(10)), len(SIMPLE.split()),
+        self.assertEqual(len(token.level(10)), len(SIMPLE.split()),
             msg='high level test failed'
             )
 
@@ -110,21 +96,25 @@ class TestTreeview(unittest.TestCase):
         p = ParserBase()
         string = 'aaaaaa'
         p.new_rule('as', '"a" as | "a"', main=True)
-        tv = p.parse(string)
-        tv.flatten()
+        token = p.parse(string)
+        token.flatten()
         self.assertEqual(
-            string, ''.join(c.value() for c in tv.children),
+            string, ''.join(c.value() for c in token.children),
             msg='flatten failed for simple example'
             )
 
     def test_flatten_complex(self):
         """ A more complicated test of the flatten method. """
-        tv = self.parser.parse(SAMPLE)
-        for i in range(5):
-            print(tv.level(i, as_str=True))
-        tv = TreeView(tv.flatten())
-        for i in range(5):
-            print(tv.level(i, as_str=True))
+        token = self.parser.parse(SAMPLE).flatten()
+        for t in token.child(-1).level(1):
+            self.assertNotEqual(t.token_type, 'expression',
+                msg='flatten method failed - expression found'
+            )
+        stream = token.child(-1).level(1, as_str=True)
+        expect = ['4+', '5+', '6+', '5', '+', '65']
+        self.assertEqual(stream, expect, 
+            msg='flattening failed - tokens not as expected'
+            )
 
 def tearDown(self):
         """ Remove the parser. """
