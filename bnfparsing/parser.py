@@ -6,7 +6,6 @@ from functools import wraps
 # package
 from .utils import NULL, head, is_quote, is_literal, split_tokens
 from .token import Token
-from .treeview import TreeView
 from .exceptions import *
 
 __all__ = ['ParserBase', 'rule']
