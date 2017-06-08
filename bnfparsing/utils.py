@@ -34,8 +34,12 @@ def split_tokens(string):
     finalised in the output list, in reverse. This is then split on the 
     NULL character to get separated token names.
     """
+    # split the string around double backslashes
+    no_double = string.split('\\\\')
+    # remove escaped quotes and replace backslashes
+    # only one backslash is returned - this is because it's escaped
+    replaced = '\\'.join(s.replace('\\"', NULL) for s in no_double)
     # replace escaped double quotes
-    replaced = string.replace('\\"', NULL)
     groups = replaced.split('"')
     tokens = []
     # if the number of groups is even then there is an issue

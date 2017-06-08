@@ -150,6 +150,12 @@ class TestParser(unittest.TestCase):
         p.new_rule('quote', r'"\""')
         p.parse('"')
 
+    def test_backslash_escaping(self):
+        """ Try escaping a backslash in a rule. """
+        p = ParserBase()
+        p.new_rule('escape', '"\\\\"')
+        p.parse('\\')
+
     def test_rule_from_function(self):
         """ Check the operation of custom rules. """
 
