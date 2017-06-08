@@ -234,7 +234,7 @@ class ParserBase(object):
                 group = [item.replace(NULL, '|') for item in group]
                 group_funcs.append(self.make_group(group, name))
             # and then set up an 'or' function
-            func = self.make_choice(group_funcs)
+            func = self.make_choice(group_funcs, name)
         else:
             # put pipes back into places
             group = [item.replace(NULL, '|') for item in groups[0]]
@@ -332,7 +332,7 @@ class ParserBase(object):
         # return the function that was created
         return group_func
 
-    def make_choice(self, choices):
+    def make_choice(self, choices, name):
         """ Create a function that handles a series or 'or' clauses.
         For example, " a | b | c". The function calls each rule or
         literal in turn and returns the first that is successful, or
@@ -341,14 +341,18 @@ class ParserBase(object):
         """
 
         def choice_func(string, debug=False):
-            """ Call each rule or literal in turn. Return the token
-            from the first successful call, as well as the input string
-            less consumed characters. If all calls fail, return None
-            and the original input.
+            """ Call each rule or literal in turn. Create a master token
+            and add as a child the token from the first successful call, 
+            as well as the input string less consumed characters. If all 
+            calls fail, return None and the original input.
             """
+            # create master token
+            master = Token(token_type=name)
             for item in choices:
                 token, string = item(string, debug)
                 if token:
+                    # add the token to the master
+                    master.add(token)
                     # return a token if the function succeeds
                     return token, string
             # if none succeed, return nothing
