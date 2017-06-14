@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """ Defines a class that represents a token in a syntax tree. Contains
-one class, Token. In many ways, tokens behave like strings.
+one class, Token. In many ways, tokens behave like strings. However,
+tokens contain a number of other methods for inspecting the tokens
+beneath them.
 """
 
 from copy import copy
@@ -11,9 +13,22 @@ class Token:
     def __init__(self, token_type=None, text='', 
             no_aggregate=[], tags=[]):
         """ Create a new token. Tokens can be initialised with any of a
-        type and a text value. Tokens can have child tokens beneath
-        them; the "value" of a token is either the text in the token or
-        aggregated text of the tokens below it.
+        type, a text value, other tags and a list of tokens that aren't
+        broken down. 
+        
+        Tokens can have child tokens beneath them; the "value" of a 
+        token is either the text in the token or aggregated text of the 
+        tokens below it. Token tags are used to indicate the various
+        token types that it has - the token type is always included as
+        part of the initialisation. This is used when a token is
+        produced as part of an "or" - if C := A | B, the resultant C
+        token might also be tagged as an A.
+
+        The no_aggregate argument is used to prevent tokens from being
+        broken down. For example, if word := letters, you may wish the
+        series method to stop breaking words into individual letters.
+        This parameter is the default behaviour, which can be 
+        overridden for each call to series.
 
         The token behaves like a string in most respects when using
         Python's 'magic 'methods' to interact with them. Examples 
@@ -64,7 +79,7 @@ class Token:
         child.parent = None
 
     def tag(self, name):
-        """ Append a string to the tag list. """
+        """ Append a string to the tag set. """
         self.tags.add(name)
 
     def has_under(self, tag=None):
@@ -110,8 +125,9 @@ class Token:
         with children "a -> b b".
 
         The flattening technically occurs when a child token has the
-        same token type as it's parent. Flattening is not just applied
-        to the top-level token but to its children.
+        same token type as its parent and itself has a child token with
+        that type. Flattening is not just applied to the top-level token 
+        but to its children.
 
         Returns a new Token - the old token is not modified.
         """
@@ -141,7 +157,7 @@ class Token:
         beneath the given token. In general, these should all be literal
         expressions.
 
-        Use the aggregate option to specify a list of token types that
+        Use the no_aggregate option to specify a list of token types that
         should not be broken up. For example, 'word' made up of repeated
         'alpha' tokens is probably more useful as it is, rather than
         being given as a series of individual letters.

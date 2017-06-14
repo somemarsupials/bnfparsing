@@ -109,8 +109,9 @@ class ParserBase(object):
         """ Create a syntax tree by parsing a string. Parses the input
         string using the role indicated by main, or otherwise self.main. 
         An exception is raised if any characters in the string are not 
-        consumed, unless the allow_partial argument is True. Returns a 
-        Token.
+        consumed, unless the allow_partial argument is True. If the
+        no_aggregate option is given then this is applied to the new 
+        token. Returns a Token.
         """
         # search for the specified function to start with
         if main and main in self.rules:
@@ -346,12 +347,9 @@ class ParserBase(object):
             as well as the input string less consumed characters. If all 
             calls fail, return None and the original input.
             """
-            # create master token
-            master = Token(token_type=name)
             for item in choices:
                 token, string = item(string, debug)
                 if token:
-                    master.add(token)
                     # apply a tag
                     token.tag(name)
                     # return a token if the function succeeds
