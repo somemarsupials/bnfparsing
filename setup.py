@@ -9,7 +9,7 @@ setup(
     name='bnfparsing',
     packages=['bnfparsing'],
     test_suite='tests',
-    version='0.1.3',
+    version='0.1.4',
     description='A BNF parser generator for Python',
     long_description=open('README.rst').read(),
 
