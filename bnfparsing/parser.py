@@ -351,8 +351,9 @@ class ParserBase(object):
             for item in choices:
                 token, string = item(string, debug)
                 if token:
-                    # add the token to the master
                     master.add(token)
+                    # apply a tag
+                    token.tag(name)
                     # return a token if the function succeeds
                     return token, string
             # if none succeed, return nothing

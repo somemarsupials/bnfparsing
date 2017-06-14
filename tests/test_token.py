@@ -110,3 +110,38 @@ class TokenTestSuite(TestCase):
         self.assertFalse(token == CHILD, 
             msg='__eq__ gave false postive for string'
             )
+
+    def test_has_under_no_args(self):
+        """ Test the has_under method without arguments. """
+        token = Token()
+        self.assertFalse(token.has_under(),
+            msg='has_under failed for empty token'
+            )
+        token.add(Token())
+        self.assertTrue(token.has_under(),
+            msg='has_under failed for non-empty token'
+            )
+
+    def test_has_under_with_tag(self):
+        """ Test the has_under method with a tag name. """
+        token = Token()
+        token.add(Token(token_type=CHILD))
+        self.assertTrue(token.has_under(CHILD), 
+            msg='failed to identify existing token'
+            )
+        self.assertFalse(token.has_under(MASTER),
+            msg='falsely found non-existent token'
+            )
+
+    def test_tag(self):
+        """ Test tag creation and addition. """
+        token = Token(MASTER)
+        self.assertEqual(token.tags, {MASTER}, 
+            msg='did not include token type tag in new token'
+            )
+        token.tag(CHILD)
+        self.assertTrue(CHILD in token.tags, msg='tag addition failed')
+        token = Token(MASTER, tags=[CHILD])
+        self.assertEqual(token.tags, {MASTER, CHILD},
+            msg='tag addition from __init__ failed'
+            )

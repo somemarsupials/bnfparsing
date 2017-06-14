@@ -106,17 +106,13 @@ class TestTokenAdvanced(unittest.TestCase):
     def test_flatten_complex(self):
         """ A more complicated test of the flatten method. """
         token = self.parser.parse(SAMPLE).flatten()
-        for t in token.child(-1).level(1):
-            self.assertNotEqual(t.token_type, 'expression',
-                msg='flatten method failed - expression found'
-            )
         stream = token.child(-1).level(1, as_str=True)
-        expect = ['4+', '5+', '6+', '5', '+', '65']
+        expect = ['4+', '5+', '6+', '5+65']
         self.assertEqual(stream, expect, 
             msg='flattening failed - tokens not as expected'
             )
 
-def tearDown(self):
+    def tearDown(self):
         """ Remove the parser. """
         del self.parser
 

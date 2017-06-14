@@ -8,7 +8,7 @@ from copy import copy
 
 class Token:
 
-    def __init__(self, token_type=None, text='', aggregate=[]):
+    def __init__(self, token_type=None, text='', aggregate=[], tags=[]):
         """ Create a new token. Tokens can be initialised with any of a
         type and a text value. Tokens can have child tokens beneath
         them; the "value" of a token is either the text in the token or
@@ -22,6 +22,8 @@ class Token:
         iterating over children with ease.
         """
         self.token_type = token_type
+        # compile tag list
+        self.tags = set([*tags, token_type])
         self.text = text
         self.children = []
         self.aggregate = []
@@ -60,9 +62,25 @@ class Token:
         # ensure that the child does not point to the parent
         child.parent = None
 
-    def has_under(self):
-        """ True if the token has any children. """
-        return len(self.children) > 0
+    def tag(self, name):
+        """ Append a string to the tag list. """
+        self.tags.add(name)
+
+    def has_under(self, tag=None):
+        """ If no tag is given, true if the token has any children. 
+        Otherwise, true if there is a child beneath the token that has
+        the given tag.
+        """
+        if tag:
+            # iterate over children
+            for c in self.children:
+                if tag in c.tags:
+                    return True
+            # return false if no matches are found
+            return False
+        else:
+            # otherwise check for the existence of children
+            return len(self.children) > 0
 
     def value(self, with_whitespace=False):
         """ For a literal (i.e. a token with self.text), get the token's 
@@ -96,12 +114,15 @@ class Token:
 
         Returns a new Token - the old token is not modified.
         """
+        tt = self.token_type
         # create a new token with same type
-        new = Token(token_type=self.token_type, text=self.text)
+        new = Token(token_type=tt, text=self.text, tags=self.tags, 
+            aggregate=self.aggregate
+            )
         # replace children with flattened children
         for c in self.children:
             # for tokens with matching token types
-            if c.token_type == self.token_type:
+            if c.token_type == tt and c.has_under(tt):
                 # add those without children
                 if not c.has_under():
                     new.add(copy(c))
@@ -111,7 +132,7 @@ class Token:
                     new.add(copy(child))
             # otherwise flatten the child
             else:
-                new.add(c.flatten())
+                new.add(copy(c).flatten())
         return new
 
     def series(self, aggregate=None, as_str=False):
