@@ -1,5 +1,0 @@
-I've got some experience, mostly acquired through self-study. I would describe myself as a confident Python user. I've created a few small projects myself, including a simple web-scraping program and a parser generator for Backus-Naur form grammars. As an environmental consultant, I've found ways to use Python in the office - in this context I've mostly used programming for data analysis and data sanitisation. However, I also put together a small program designed to transfer data from Microsoft Excel to Word. Finally, I've taken part in a Kaggle contest with a friend using Python.
-
-Through my current role I've become fairly proficient in VBA, used in conjunction with Microsoft Excel. I have learnt C programming and have written a few short programs, including a solver for Snatch (https://boardgamegeek.com/boardgame/9556/snatch) and a simple parser capable of validating HTML. 
-
-I've used Git for some of my own projects and I'm familiar with the basics of SQL and HTML. I've also got some experience with Linux, having purchased a few Raspberry Pi micro-computers. One of these has become a music server attached to my dad's sound system!
