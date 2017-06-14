@@ -8,17 +8,18 @@ from bnfparsing.utils import head
 ESCAPES = r'WwDdSsnt()[]?*+|'
 
 # list of valid printable characters
-IMPERMISSIBLE = '?*+|[]{}-'
+IMPERMISSIBLE = '?*+|[]{}-()\\'
 
 
 # the grammar specification for regular expressions
 REGEX_GRAMMAR = r"""
-regex       := or_phrase regex | phrase
+regex       := phrase options | phrase
+options     := or_phrase options | or_phrase
 or_phrase   := "\|" phrase
 phrase      := item phrase | item
 item        := atom modifier | atom
 modifier    := "+" | "*" | "?"
-atom        := char | group | set
+atom        := group | set | char
 group       := "(" regex ")"
 set         := "[" setitems "]"
 setitems    := setitem setitems | setitem
@@ -65,7 +66,5 @@ class RegexParser(ParserBase):
 
 if __name__ == '__main__':
     p = RegexParser()
-    root = p.parse('[A-Z1-2A-Z]')
-    print(root)
-    for i in range(5):
-        print([t.tags for t in root.flatten().level(i)])
+    root = p.parse('a(34|45|56)|[A-Z1-2A-Z\w]').flatten()
+    print(root.series(as_str=True, no_aggregate=['range']))

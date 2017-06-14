@@ -8,7 +8,8 @@ from copy import copy
 
 class Token:
 
-    def __init__(self, token_type=None, text='', aggregate=[], tags=[]):
+    def __init__(self, token_type=None, text='', 
+            no_aggregate=[], tags=[]):
         """ Create a new token. Tokens can be initialised with any of a
         type and a text value. Tokens can have child tokens beneath
         them; the "value" of a token is either the text in the token or
@@ -26,7 +27,7 @@ class Token:
         self.tags = set([*tags, token_type])
         self.text = text
         self.children = []
-        self.aggregate = []
+        self.no_aggregate = []
         self.parent = None
 
     def add(self, child):
@@ -117,7 +118,7 @@ class Token:
         tt = self.token_type
         # create a new token with same type
         new = Token(token_type=tt, text=self.text, tags=self.tags, 
-            aggregate=self.aggregate
+            no_aggregate=self.no_aggregate
             )
         # replace children with flattened children
         for c in self.children:
@@ -135,7 +136,7 @@ class Token:
                 new.add(copy(c).flatten())
         return new
 
-    def series(self, aggregate=None, as_str=False):
+    def series(self, no_aggregate=None, as_str=False):
         """ Generate an ordered list of the lowest-level child tokens
         beneath the given token. In general, these should all be literal
         expressions.
@@ -148,13 +149,16 @@ class Token:
         Use the as_str option to return a list of strings instead of
         tokens.
         """
-        if not aggregate:
-            aggregate = self.aggregate
+        if not no_aggregate:
+            no_aggregate = self.no_aggregate
+        # don't break down if requested
+        if any(t in no_aggregate for t in self.tags):
+            return [self.value() if as_str else self]
         output = []
         for c in self.children:
             # recursively call for tokens with children
-            if c.has_under() and c.token_type not in aggregate:
-                output.extend(c.series(aggregate, as_str))
+            if c.has_under():
+                output.extend(c.series(no_aggregate, as_str))
             # otherwise return the token value
             else:
                 output.append(c.value() if as_str else c)

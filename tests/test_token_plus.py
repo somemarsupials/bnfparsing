@@ -69,6 +69,14 @@ class TestTokenAdvanced(unittest.TestCase):
             msg='tokens not generated as strings as expected'
             )
 
+    def test_flatten_with_aggregate(self):
+        """ Test the no_aggregation parameter of the flatten method. """
+        token = self.parser.parse(SAMPLE).flatten()
+        stream = token.series(no_aggregate=['if_stmt'])
+        self.assertTrue(any(t.token_type == 'if_stmt' for t in stream),
+            msg='token was broken down despite aggregation'
+            )
+
     def test_find(self):
         """ Test the find method of the TreeView. """
         token = self.parser.parse(SAMPLE)
